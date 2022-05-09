@@ -1,0 +1,3 @@
+mod product;
+
+fn main() {}

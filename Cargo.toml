@@ -11,6 +11,10 @@ path = "common/src/lib.rs"
 name = "customer_services"
 path = "customer_services/src/main.rs"
 
+[[bin]]
+name = "product_services"
+path = "product_services/src/main.rs"
+
 [dependencies.tokio]
 version = "1.17.0"
 features = ["full"]
