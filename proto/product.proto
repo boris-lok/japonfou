@@ -1,0 +1,50 @@
+syntax = "proto3";
+package grpc.product;
+
+service ProductServices {
+    rpc create (CreateProductRequest) returns (Product);
+    rpc update (UpdateProductRequest) returns (Product);
+    rpc get (GetProductRequest) returns (GetProductResponse);
+    rpc list (ListProductRequest) returns (ListProductResponse);
+}
+
+message CreateProductRequest {
+    string name = 1;
+    int32 currency = 2;
+    double price = 3;
+}
+
+message UpdateProductRequest {
+    uint64 id = 1;
+    optional string name = 2;
+    optional int32 currency = 3;
+    optional double price = 4;
+}
+
+message GetProductRequest {
+    uint64 id = 1;
+}
+
+message GetProductResponse {
+    optional Product product = 1;
+}
+
+message ListProductRequest {
+    optional string query = 1;
+    optional uint64 cursor = 2;
+    uint32 page_size = 3;
+}
+
+message ListProductResponse {
+    repeated Product products = 1;
+}
+
+message Product {
+    uint64 id = 1;
+    string name = 2;
+    int32 currency = 3;
+    double price = 4;
+    uint64 created_at = 5;
+    optional uint64 updated_at = 6;
+    optional uint64 deleted_at = 7;
+}

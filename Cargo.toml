@@ -5,6 +5,75 @@ edition = "2021"
 
 [lib]
 name = "common"
-path = "common"
+path = "common/src/lib.rs"
 
-[dependencies]
+[dependencies.tokio]
+version = "1.17.0"
+features = ["full"]
+
+[dependencies.futures]
+version = "0.3.21"
+
+[dependencies.serde]
+version = "1.0.136"
+features = ["derive"]
+
+[dependencies.sqlx]
+version = "0.5.13"
+features = ["runtime-tokio-rustls", "all-types", "postgres"]
+
+[dependencies.chrono]
+version = "0.4.19"
+features = ["serde"]
+
+[dependencies.uuid]
+version = "0.8.2"
+features = ["v4", "serde"]
+
+[dependencies.rust_decimal]
+version = "1.23.1"
+features = ["serde"]
+
+[dependencies.async-trait]
+version = "0.1.53"
+
+[dependencies.sea-query]
+version = "0.24.2"
+features = ["derive", "postgres-types", "postgres-uuid", "postgres-chrono"]
+
+[dependencies.tracing]
+version = "0.1.34"
+
+[dependencies.tracing-subscriber]
+version = "0.3.11"
+
+[dependencies.tracing-appender]
+version = "0.2.2"
+
+[dependencies.thiserror]
+version = "1.0.30"
+
+[dependencies.anyhow]
+version = "1.0.57"
+
+[dependencies.dotenv]
+version = "0.15.0"
+
+[dependencies.tonic]
+version = "0.7.1"
+
+[dependencies.prost]
+version = "0.10.1"
+
+[dependencies.r2d2_redis]
+version = "0.14.0"
+
+[dependencies.lazy_static]
+version = "1.4.0"
+
+[dependencies.snowflake]
+git = "https://github.com/boris-lok/snowflake"
+branch = "master"
+
+[build-dependencies]
+tonic-build = "0.7.0"
