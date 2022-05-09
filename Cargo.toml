@@ -7,6 +7,10 @@ edition = "2021"
 name = "common"
 path = "common/src/lib.rs"
 
+[[bin]]
+name = "customer_services"
+path = "customer_services/src/main.rs"
+
 [dependencies.tokio]
 version = "1.17.0"
 features = ["full"]
