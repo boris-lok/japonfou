@@ -1,0 +1,41 @@
+syntax = "proto3";
+package grpc.order.item;
+
+import "types.proto";
+
+service OrderItemServices {
+  rpc get(grpc.types.GetByIdRequest) returns (GetOrderItemResponse);
+  rpc list(grpc.types.ListRequest) returns (ListOrderItemResponse);
+}
+
+message GetOrderItemResponse {
+  optional OrderItem item = 1;
+}
+
+message ListOrderItemResponse {
+  repeated OrderItem items = 1;
+}
+
+
+message OrderItem {
+  message Customer {
+    uint64 id = 1;
+    string name = 2;
+  }
+
+  message Product {
+    uint64 id = 1;
+    string name = 2;
+    uint32 currency = 3;
+    double price = 4;
+  }
+
+  uint64 id = 1;
+  Product product = 2;
+  Customer customer = 3;
+  uint32 quantity = 4;
+  uint64 created_at = 5;
+  optional uint64 updated_at = 6;
+  optional uint64 deleted_at = 7;
+  uint32 status = 8;
+}

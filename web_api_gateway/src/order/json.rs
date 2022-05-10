@@ -32,3 +32,10 @@ pub struct UpdateOrderItemStatusRequest {
     pub ids: Vec<u64>,
     pub status: OrderItemStatus,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ListOrderItemsRequest {
+    pub query: Option<String>,
+    pub page: Option<u64>,
+    pub page_size: Option<u64>,
+}
