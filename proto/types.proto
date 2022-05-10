@@ -1,0 +1,12 @@
+syntax = "proto3";
+package grpc.types;
+
+message GetByIdRequest {
+  uint64 id = 1;
+}
+
+message ListRequest {
+  optional string query = 1;
+  uint64 page = 2;
+  uint64 page_size = 3;
+}

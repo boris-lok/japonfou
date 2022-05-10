@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 
 use common::json::customer::Customer;
-use common::pb::{CreateCustomerRequest, ListCustomerRequest, UpdateCustomerRequest};
+use common::pb::{CreateCustomerRequest, UpdateCustomerRequest};
+use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
 
@@ -15,7 +16,7 @@ pub trait CustomerService {
 
     async fn create(&self, request: CreateCustomerRequest) -> AppResult<Customer>;
 
-    async fn list(&self, request: ListCustomerRequest) -> AppResult<Vec<Customer>>;
+    async fn list(&self, request: ListRequest) -> AppResult<Vec<Customer>>;
 
     async fn update(&self, request: UpdateCustomerRequest) -> AppResult<Customer>;
 }
@@ -56,7 +57,7 @@ impl CustomerService for CustomerServiceImpl {
         customer
     }
 
-    async fn list(&self, request: ListCustomerRequest) -> AppResult<Vec<Customer>> {
+    async fn list(&self, request: ListRequest) -> AppResult<Vec<Customer>> {
         let repo = CustomerRepoImpl;
 
         repo.list(request, &self.pool.clone()).await.map_err(|e| {

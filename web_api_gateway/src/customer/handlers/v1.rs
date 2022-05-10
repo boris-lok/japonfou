@@ -1,9 +1,7 @@
-
-
 use warp::reply::Reply;
 
 use common::json::customer::Customer;
-use common::pb;
+use common::{pb, types};
 
 use crate::customer::json::{CreateCustomerRequest, ListCustomerRequest, UpdateCustomerRequest};
 use crate::util::alias::WebResult;
@@ -15,7 +13,7 @@ pub async fn get(req: u64, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
     client
-        .get(pb::GetCustomerRequest { id: req })
+        .get(types::GetByIdRequest { id: req })
         .await
         .map(|c| {
             let customer = c.into_inner().customer;
@@ -63,7 +61,7 @@ pub async fn update(req: UpdateCustomerRequest, env: Env) -> WebResult<impl Repl
 pub async fn list(req: ListCustomerRequest, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
-    let req: pb::ListCustomerRequest = req.into();
+    let req: types::ListRequest = req.into();
 
     client
         .list(req)

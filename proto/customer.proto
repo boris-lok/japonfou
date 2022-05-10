@@ -1,50 +1,41 @@
 syntax = "proto3";
 package grpc.customer;
 
+import "types.proto";
+
 service CustomerServices {
-    rpc create (CreateCustomerRequest) returns (Customer);
-    rpc update (UpdateCustomerRequest) returns (Customer);
-    rpc get (GetCustomerRequest) returns (GetCustomerResponse);
-    rpc list (ListCustomerRequest) returns (ListCustomerResponse);
+  rpc create (CreateCustomerRequest) returns (Customer);
+  rpc update (UpdateCustomerRequest) returns (Customer);
+  rpc get (grpc.types.GetByIdRequest) returns (GetCustomerResponse);
+  rpc list (grpc.types.ListRequest) returns (ListCustomerResponse);
 }
 
 message CreateCustomerRequest {
-    string name = 1;
-    optional string email = 2;
-    optional string phone = 3;
+  string name = 1;
+  optional string email = 2;
+  optional string phone = 3;
 }
 
 message UpdateCustomerRequest {
-    uint64 id = 1;
-    optional string name = 2;
-    optional string email = 3;
-    optional string phone = 4;
-}
-
-message GetCustomerRequest {
-    uint64 id = 1;
+  uint64 id = 1;
+  optional string name = 2;
+  optional string email = 3;
+  optional string phone = 4;
 }
 
 message GetCustomerResponse {
-    optional Customer customer = 1;
-}
-
-message ListCustomerRequest {
-    optional string query = 1;
-    optional uint64 cursor = 2;
-    uint32 page_size = 3;
+  optional Customer customer = 1;
 }
 
 message ListCustomerResponse {
-    repeated Customer customers = 1;
+  repeated Customer customers = 1;
 }
 
 message Customer {
-    uint64 id = 1;
-    string name = 2;
-    optional string email = 3;
-    optional string phone = 4;
-    uint64 created_at = 5;
-    optional uint64 updated_at = 6;
+  uint64 id = 1;
+  string name = 2;
+  optional string email = 3;
+  optional string phone = 4;
+  uint64 created_at = 5;
+  optional uint64 updated_at = 6;
 }
-

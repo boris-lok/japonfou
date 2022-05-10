@@ -5,7 +5,8 @@ use sea_query::{Cond, Query};
 use sea_query::{Expr, PostgresQueryBuilder};
 
 use common::json::customer::{Customer, Customers};
-use common::pb::{CreateCustomerRequest, ListCustomerRequest, UpdateCustomerRequest};
+use common::pb::{CreateCustomerRequest, UpdateCustomerRequest};
+use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
 use crate::customer::repos::repo::CustomerRepo;
@@ -83,14 +84,14 @@ impl CustomerRepo for CustomerRepoImpl {
 
     async fn list(
         &self,
-        request: ListCustomerRequest,
+        request: ListRequest,
         executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> Result<Vec<Customer>> {
         let mut conn = executor.acquire().await.unwrap();
 
-        let cursor = request.cursor;
         let query = request.query.map(|q| format!("%{}%", q));
-        let page_size = request.page_size;
+        let page_size = request.page_size as u64;
+        let offset = request.page as u64 * page_size;
 
         let sql = Query::select()
             .columns(vec![
@@ -101,7 +102,6 @@ impl CustomerRepo for CustomerRepoImpl {
                 Customers::CreatedAt,
                 Customers::UpdatedAt,
             ])
-            .cond_where(Cond::all().add_option(cursor.map(|e| Expr::col(Customers::Id).eq(e))))
             .cond_where(
                 Cond::any()
                     .add_option(query.clone().map(|e| Expr::col(Customers::Name).like(&e)))
@@ -109,7 +109,8 @@ impl CustomerRepo for CustomerRepoImpl {
                     .add_option(query.map(|e| Expr::col(Customers::Phone).like(&e))),
             )
             .from(Customers::Table)
-            .limit(page_size as u64)
+            .offset(offset)
+            .limit(page_size)
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Customer>(&sql)

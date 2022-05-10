@@ -4,9 +4,11 @@ use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 use common::pb::{
-    CreateProductRequest, GetProductRequest, GetProductResponse,
-    ListProductRequest, ListProductResponse, Product, product_services_server::ProductServices, UpdateProductRequest,
+    product_services_server::ProductServices, CreateProductRequest, GetProductResponse,
+    ListProductResponse, Product, UpdateProductRequest,
 };
+use common::types::{GetByIdRequest, ListRequest};
+use common::util::tools::grpc_error_handler;
 
 use crate::product::services::service::{ProductService, ProductServiceImpl};
 
@@ -28,8 +30,6 @@ impl ProductServices for ProductServicesImpl {
         &self,
         request: Request<CreateProductRequest>,
     ) -> Result<Response<Product>, Status> {
-        tracing::info!(message = "Got a request to create a product.");
-
         let request = request.into_inner();
 
         let services = ProductServiceImpl::new(self.session.clone());
@@ -41,11 +41,7 @@ impl ProductServices for ProductServicesImpl {
                 let p: Product = p.into();
                 Response::new(p)
             })
-            .map_err(|err| {
-                let msg = err.to_string();
-                tracing::error!(%msg);
-                Status::failed_precondition(msg)
-            })
+            .map_err(grpc_error_handler)
     }
 
     async fn update(
@@ -63,16 +59,12 @@ impl ProductServices for ProductServicesImpl {
                 let p: Product = p.into();
                 Response::new(p)
             })
-            .map_err(|err| {
-                let msg = err.to_string();
-                tracing::error!(%msg);
-                Status::failed_precondition(msg)
-            })
+            .map_err(grpc_error_handler)
     }
 
     async fn get(
         &self,
-        request: Request<GetProductRequest>,
+        request: Request<GetByIdRequest>,
     ) -> Result<Response<GetProductResponse>, Status> {
         let request = request.into_inner();
 
@@ -85,16 +77,12 @@ impl ProductServices for ProductServicesImpl {
                 let p: Option<Product> = p.map(|e| e.into());
                 Response::new(GetProductResponse { product: p })
             })
-            .map_err(|err| {
-                let msg = err.to_string();
-                tracing::error!(%msg);
-                Status::failed_precondition(msg)
-            })
+            .map_err(grpc_error_handler)
     }
 
     async fn list(
         &self,
-        request: Request<ListProductRequest>,
+        request: Request<ListRequest>,
     ) -> Result<Response<ListProductResponse>, Status> {
         let request = request.into_inner();
 
@@ -107,10 +95,6 @@ impl ProductServices for ProductServicesImpl {
                 let p: Vec<Product> = p.into_iter().map(|e| e.into()).collect();
                 Response::new(ListProductResponse { products: p })
             })
-            .map_err(|err| {
-                let msg = err.to_string();
-                tracing::error!(%msg);
-                Status::failed_precondition(msg)
-            })
+            .map_err(grpc_error_handler)
     }
 }

@@ -2,7 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use common::json::product::Product;
-use common::pb::{CreateProductRequest, ListProductRequest, UpdateProductRequest};
+use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
 #[async_trait]
@@ -27,7 +28,7 @@ pub trait ProductRepo {
 
     async fn list(
         &self,
-        request: ListProductRequest,
+        request: ListRequest,
         executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> Result<Vec<Product>>;
 }

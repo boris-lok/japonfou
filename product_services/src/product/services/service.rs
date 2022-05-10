@@ -3,7 +3,8 @@ use rust_decimal::Decimal;
 use sqlx::{Pool, Postgres};
 
 use common::json::product::Product;
-use common::pb::{CreateProductRequest, ListProductRequest, UpdateProductRequest};
+use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
 
@@ -18,7 +19,7 @@ pub trait ProductService {
 
     async fn update(&self, request: UpdateProductRequest) -> AppResult<Product>;
 
-    async fn list(&self, request: ListProductRequest) -> AppResult<Vec<Product>>;
+    async fn list(&self, request: ListRequest) -> AppResult<Vec<Product>>;
 }
 
 pub struct ProductServiceImpl {
@@ -95,7 +96,7 @@ impl ProductService for ProductServiceImpl {
         ))
     }
 
-    async fn list(&self, request: ListProductRequest) -> AppResult<Vec<Product>> {
+    async fn list(&self, request: ListRequest) -> AppResult<Vec<Product>> {
         let repo = ProductRepoImpl;
 
         repo.list(request, &self.pool.clone()).await.map_err(|e| {

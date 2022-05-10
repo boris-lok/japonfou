@@ -19,23 +19,9 @@ pub struct UpdateProductRequest {
     pub price: ::core::option::Option<f64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetProductRequest {
-    #[prost(uint64, tag="1")]
-    pub id: u64,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetProductResponse {
     #[prost(message, optional, tag="1")]
     pub product: ::core::option::Option<Product>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ListProductRequest {
-    #[prost(string, optional, tag="1")]
-    pub query: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(uint64, optional, tag="2")]
-    pub cursor: ::core::option::Option<u64>,
-    #[prost(uint32, tag="3")]
-    pub page_size: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListProductResponse {
@@ -163,7 +149,7 @@ pub mod product_services_client {
         }
         pub async fn get(
             &mut self,
-            request: impl tonic::IntoRequest<super::GetProductRequest>,
+            request: impl tonic::IntoRequest<super::super::types::GetByIdRequest>,
         ) -> Result<tonic::Response<super::GetProductResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -182,7 +168,7 @@ pub mod product_services_client {
         }
         pub async fn list(
             &mut self,
-            request: impl tonic::IntoRequest<super::ListProductRequest>,
+            request: impl tonic::IntoRequest<super::super::types::ListRequest>,
         ) -> Result<tonic::Response<super::ListProductResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -218,11 +204,11 @@ pub mod product_services_server {
         ) -> Result<tonic::Response<super::Product>, tonic::Status>;
         async fn get(
             &self,
-            request: tonic::Request<super::GetProductRequest>,
+            request: tonic::Request<super::super::types::GetByIdRequest>,
         ) -> Result<tonic::Response<super::GetProductResponse>, tonic::Status>;
         async fn list(
             &self,
-            request: tonic::Request<super::ListProductRequest>,
+            request: tonic::Request<super::super::types::ListRequest>,
         ) -> Result<tonic::Response<super::ListProductResponse>, tonic::Status>;
     }
     #[derive(Debug)]
@@ -353,7 +339,7 @@ pub mod product_services_server {
                     struct getSvc<T: ProductServices>(pub Arc<T>);
                     impl<
                         T: ProductServices,
-                    > tonic::server::UnaryService<super::GetProductRequest>
+                    > tonic::server::UnaryService<super::super::types::GetByIdRequest>
                     for getSvc<T> {
                         type Response = super::GetProductResponse;
                         type Future = BoxFuture<
@@ -362,7 +348,7 @@ pub mod product_services_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::GetProductRequest>,
+                            request: tonic::Request<super::super::types::GetByIdRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).get(request).await };
@@ -391,7 +377,7 @@ pub mod product_services_server {
                     struct listSvc<T: ProductServices>(pub Arc<T>);
                     impl<
                         T: ProductServices,
-                    > tonic::server::UnaryService<super::ListProductRequest>
+                    > tonic::server::UnaryService<super::super::types::ListRequest>
                     for listSvc<T> {
                         type Response = super::ListProductResponse;
                         type Future = BoxFuture<
@@ -400,7 +386,7 @@ pub mod product_services_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::ListProductRequest>,
+                            request: tonic::Request<super::super::types::ListRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).list(request).await };

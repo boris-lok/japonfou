@@ -1,7 +1,7 @@
 use warp::reply::Reply;
 
 use common::json::product::Product;
-use common::pb;
+use common::{pb, types};
 
 use crate::product::json::{CreateProductRequest, ListProductRequest, UpdateProductRequest};
 use crate::util::alias::WebResult;
@@ -12,7 +12,7 @@ pub async fn get(req: u64, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_product_client;
 
     client
-        .get(pb::GetProductRequest { id: req })
+        .get(types::GetByIdRequest { id: req })
         .await
         .map(|p| {
             let product = p.into_inner().product;
@@ -60,7 +60,7 @@ pub async fn update(req: UpdateProductRequest, env: Env) -> WebResult<impl Reply
 pub async fn list(req: ListProductRequest, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_product_client;
 
-    let req: pb::ListProductRequest = req.into();
+    let req: types::ListRequest = req.into();
 
     client
         .list(req)

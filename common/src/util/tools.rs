@@ -1,5 +1,8 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
+use tonic::Status;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
+
+use crate::util::errors::AppError;
 
 /// Init tracing - show logs in console to create daily log files.
 ///
@@ -37,4 +40,17 @@ pub fn timestamp2datetime(timestamp: u64) -> DateTime<Utc> {
     let native_datetime = NaiveDateTime::from_timestamp(secs, nsecs);
 
     DateTime::<Utc>::from_utc(native_datetime, Utc)
+}
+
+/// handle app error and parse it to grpc status
+///
+/// params:
+/// - err: app error.
+///
+/// return:
+/// - Status
+pub fn grpc_error_handler(err: AppError) -> Status {
+    let msg = err.to_string();
+    tracing::error!(message = msg.as_str());
+    Status::failed_precondition(msg)
 }

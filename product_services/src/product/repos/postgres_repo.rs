@@ -3,11 +3,12 @@ use async_trait::async_trait;
 use sea_query::{Expr, PostgresQueryBuilder, Query};
 
 use common::json::product::{Product, Products};
-use common::pb::{CreateProductRequest, ListProductRequest, UpdateProductRequest};
+use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
-use crate::ID_GENERATOR;
 use crate::product::repos::repo::ProductRepo;
+use crate::ID_GENERATOR;
 
 pub struct ProductRepoImpl;
 
@@ -107,14 +108,14 @@ impl ProductRepo for ProductRepoImpl {
 
     async fn list(
         &self,
-        request: ListProductRequest,
+        request: ListRequest,
         executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> Result<Vec<Product>> {
         let mut conn = executor.acquire().await.unwrap();
 
-        let cursor = request.cursor;
         let query = request.query.map(|q| format!("%{}%", q));
         let page_size = request.page_size;
+        let offset = request.page as u64 * page_size;
 
         let sql = Query::select()
             .columns(vec![
@@ -126,9 +127,9 @@ impl ProductRepo for ProductRepoImpl {
                 Products::UpdatedAt,
             ])
             .and_where_option(query.map(|e| Expr::col(Products::Name).like(&e)))
-            .and_where_option(cursor.map(|e| Expr::col(Products::Id).eq(e)))
             .from(Products::Table)
-            .limit(page_size as u64)
+            .offset(offset)
+            .limit(page_size)
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Product>(&sql)

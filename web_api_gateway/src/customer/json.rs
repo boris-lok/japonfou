@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use common::pb;
+use common::{pb, types};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateCustomerRequest {
@@ -41,16 +41,16 @@ impl From<UpdateCustomerRequest> for pb::UpdateCustomerRequest {
 #[derive(Debug, Deserialize)]
 pub struct ListCustomerRequest {
     pub query: Option<String>,
-    pub cursor: Option<u64>,
-    pub page_size: Option<u32>,
+    pub page: Option<u64>,
+    pub page_size: Option<u64>,
 }
 
-impl From<ListCustomerRequest> for pb::ListCustomerRequest {
+impl From<ListCustomerRequest> for types::ListRequest {
     fn from(e: ListCustomerRequest) -> Self {
         Self {
             query: e.query,
-            cursor: e.cursor,
             page_size: e.page_size.unwrap_or(20),
+            page: e.page.unwrap_or(0),
         }
     }
 }

@@ -2,11 +2,13 @@ use sqlx::{Pool, Postgres};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
-use common::pb::{
-    CreateCustomerRequest, Customer, GetCustomerRequest, GetCustomerResponse, ListCustomerRequest,
-    ListCustomerResponse, UpdateCustomerRequest,
-};
 use common::pb::customer_services_server::CustomerServices;
+use common::pb::{
+    CreateCustomerRequest, Customer, GetCustomerResponse, ListCustomerResponse,
+    UpdateCustomerRequest,
+};
+use common::types::{GetByIdRequest, ListRequest};
+use common::util::tools::grpc_error_handler;
 
 use crate::customer::services::service::{CustomerService, CustomerServiceImpl};
 
@@ -28,19 +30,15 @@ impl CustomerServices for CustomerServicesImpl {
         &self,
         request: Request<CreateCustomerRequest>,
     ) -> Result<Response<Customer>, Status> {
-        tracing::info!(message = "Got a request to create a customer.");
-
         let request = request.into_inner();
 
         let services = CustomerServiceImpl::new(self.session.clone());
 
-        let customer = services.create(request).await.map(|e| e.into());
-
-        customer.map(Response::new).map_err(|err| {
-            let msg = err.to_string();
-            tracing::error!(message = "failed to create a customer", %msg);
-            Status::failed_precondition(msg)
-        })
+        services
+            .create(request)
+            .await
+            .map(|e| Response::new(e.into()))
+            .map_err(grpc_error_handler)
     }
 
     #[instrument]
@@ -49,60 +47,51 @@ impl CustomerServices for CustomerServicesImpl {
         request: Request<UpdateCustomerRequest>,
     ) -> Result<Response<Customer>, Status> {
         let request = request.into_inner();
-        let id = request.id;
-        tracing::info!(message = "Got a request to update a customer", %id);
 
         let services = CustomerServiceImpl::new(self.session.clone());
 
-        let customer = services.update(request).await.map(|e| e.into());
-
-        customer.map(Response::new).map_err(|err| {
-            let msg = err.to_string();
-            tracing::error!(message = "failed to update a customer", %msg);
-            Status::failed_precondition(msg)
-        })
+        services
+            .update(request)
+            .await
+            .map(|e| e.into())
+            .map(Response::new)
+            .map_err(grpc_error_handler)
     }
 
     #[instrument]
     async fn get(
         &self,
-        request: Request<GetCustomerRequest>,
+        request: Request<GetByIdRequest>,
     ) -> Result<Response<GetCustomerResponse>, Status> {
         let id = request.into_inner().id;
-        tracing::info!(message = "Get a request to get a customer", %id);
 
         let services = CustomerServiceImpl::new(self.session.clone());
 
-        let customer = services.get(id as i64).await.map(|s| s.map(|e| e.into()));
-
-        customer
+        services
+            .get(id as i64)
+            .await
+            .map(|s| s.map(|e| e.into()))
             .map(|c| Response::new(GetCustomerResponse { customer: c }))
-            .map_err(|err| {
-                let msg = err.to_string();
-                tracing::error!(message = "failed to get a customer", %msg);
-                Status::failed_precondition(msg)
-            })
+            .map_err(grpc_error_handler)
     }
 
     #[instrument]
     async fn list(
         &self,
-        request: Request<ListCustomerRequest>,
+        request: Request<ListRequest>,
     ) -> Result<Response<ListCustomerResponse>, Status> {
         let request = request.into_inner();
 
         let services = CustomerServiceImpl::new(self.session.clone());
 
-        let customers = services.list(request).await.map(|e| {
-            let c = e.into_iter().map(|e| e.into()).collect::<_>();
-
-            ListCustomerResponse { customers: c }
-        });
-
-        customers.map(Response::new).map_err(|err| {
-            let msg = err.to_string();
-            tracing::error!(message = "failed to update a customer", %msg);
-            Status::failed_precondition(msg)
-        })
+        services
+            .list(request)
+            .await
+            .map(|e| {
+                let c = e.into_iter().map(|e| e.into()).collect::<_>();
+                ListCustomerResponse { customers: c }
+            })
+            .map(Response::new)
+            .map_err(grpc_error_handler)
     }
 }
