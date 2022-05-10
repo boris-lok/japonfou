@@ -16,6 +16,10 @@ name = "product_services"
 path = "product_services/src/main.rs"
 
 [[bin]]
+name = "order_services"
+path = "order_services/src/main.rs"
+
+[[bin]]
 name = "web_api_gateway"
 path = "web_api_gateway/src/main.rs"
 
