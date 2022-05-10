@@ -15,6 +15,7 @@ use crate::util::env::Env;
 use crate::util::recover::rejection_handler;
 
 mod customer;
+mod order;
 mod product;
 mod util;
 
