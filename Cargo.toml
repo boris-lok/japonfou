@@ -24,79 +24,82 @@ name = "web_api_gateway"
 path = "web_api_gateway/src/main.rs"
 
 [dependencies.tokio]
-version = "1.17.0"
+version = "*"
 features = ["full"]
 
 [dependencies.futures]
-version = "0.3.21"
+version = "*"
 
 [dependencies.warp]
-version = "0.3.2"
+version = "*"
 features = ["tokio-rustls", "compression-gzip", "websocket"]
 
 [dependencies.warp-reverse-proxy]
-version = "0.5.0"
+version = "*"
 
 [dependencies.serde]
-version = "1.0.136"
+version = "*"
 features = ["derive"]
 
+[dependencies.serde_repr]
+version = "*"
+
 [dependencies.sqlx]
-version = "0.5.13"
+version = "*"
 features = ["runtime-tokio-rustls", "all-types", "postgres"]
 
 [dependencies.chrono]
-version = "0.4.19"
+version = "*"
 features = ["serde"]
 
 [dependencies.uuid]
-version = "0.8.2"
+version = "*"
 features = ["v4", "serde"]
 
 [dependencies.rust_decimal]
-version = "1.23.1"
+version = "*"
 features = ["serde"]
 
 [dependencies.async-trait]
-version = "0.1.53"
+version = "*"
 
 [dependencies.sea-query]
-version = "0.24.2"
+version = "*"
 features = ["derive", "postgres-types", "postgres-uuid", "postgres-chrono"]
 
 [dependencies.tracing]
-version = "0.1.34"
+version = "*"
 
 [dependencies.tracing-subscriber]
-version = "0.3.11"
+version = "*"
 
 [dependencies.tracing-appender]
-version = "0.2.2"
+version = "*"
 
 [dependencies.thiserror]
-version = "1.0.30"
+version = "*"
 
 [dependencies.anyhow]
-version = "1.0.57"
+version = "*"
 
 [dependencies.dotenv]
-version = "0.15.0"
+version = "*"
 
 [dependencies.tonic]
-version = "0.7.1"
+version = "*"
 
 [dependencies.prost]
-version = "0.10.1"
+version = "*"
 
 [dependencies.r2d2_redis]
-version = "0.14.0"
+version = "*"
 
 [dependencies.lazy_static]
-version = "1.4.0"
+version = "*"
 
 [dependencies.snowflake]
 git = "https://github.com/boris-lok/snowflake"
 branch = "master"
 
 [build-dependencies]
-tonic-build = "0.7.0"
+tonic-build = "*"
