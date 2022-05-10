@@ -41,8 +41,8 @@ async fn main() -> Result<()> {
 
     let product_service = ProductServicesImpl::new(database_connection);
 
-    let addr = dotenv::var("CUSTOMER_HOST_ADDRESS")
-        .unwrap_or_else(|_| "127.0.0.1:10001".to_string())
+    let addr = dotenv::var("PRODUCT_HOST_ADDRESS")
+        .unwrap_or_else(|_| "127.0.0.1:10002".to_string())
         .parse()
         .expect("Can't parse hosting address.");
 
