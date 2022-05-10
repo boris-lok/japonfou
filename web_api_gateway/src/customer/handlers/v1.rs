@@ -1,5 +1,5 @@
-use tonic::Status;
-use warp::Rejection;
+
+
 use warp::reply::Reply;
 
 use common::json::customer::Customer;
@@ -8,7 +8,7 @@ use common::pb;
 use crate::customer::json::{CreateCustomerRequest, ListCustomerRequest, UpdateCustomerRequest};
 use crate::util::alias::WebResult;
 use crate::util::env::Env;
-use crate::util::error::ServerError;
+
 use crate::util::recover::custom_error_handler;
 
 pub async fn get(req: u64, env: Env) -> WebResult<impl Reply> {

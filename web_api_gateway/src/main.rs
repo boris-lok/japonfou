@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use anyhow::Result;
 use tonic::transport::Endpoint;
 use warp::Filter;
@@ -36,15 +38,15 @@ async fn main() -> Result<()> {
         .expose_headers(vec!["set-cookie"])
         .allow_methods(vec!["GET", "POST", "DELETE", "PUT", "PATCH"]);
 
-    let addr = dotenv::var("CUSTOMER_HOST_ADDRESS")
-        .unwrap_or_else(|_| "127.0.0.1:10001".to_string())
+    let addr = dotenv::var("CUSTOMER_CLIENT_ADDRESS")
+        .unwrap_or_else(|_| "http://127.0.0.1:10001".to_string())
         .parse::<Endpoint>()
         .expect("Can't parse hosting address.");
 
     let grpc_customer_client = CustomerServicesClient::connect(addr).await.unwrap();
 
-    let addr = dotenv::var("PRODUCT_HOST_ADDRESS")
-        .unwrap_or_else(|_| "127.0.0.1:10002".to_string())
+    let addr = dotenv::var("PRODUCT_CLIENT_ADDRESS")
+        .unwrap_or_else(|_| "http://127.0.0.1:10002".to_string())
         .parse::<Endpoint>()
         .expect("Can't parse hosting address.");
 
@@ -52,12 +54,20 @@ async fn main() -> Result<()> {
 
     let env = Env::new(true, grpc_customer_client, grpc_product_client);
 
-    let routes = customer::routes::routes(env.clone())
+    let customer_routes = customer::routes::routes(env.clone());
+    let product_routes = product::routes::routes(env.clone());
+
+    let routes = customer_routes
+        .or(product_routes)
         .with(cors)
         .with(warp::trace::request())
         .recover(rejection_handler);
 
-    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+    let addr = dotenv::var("WEB_API_GATEWAY_HOST_ADDRESS")
+        .unwrap_or_else(|_| "127.0.0.1:10002".to_string())
+        .parse::<SocketAddr>()?;
+
+    warp::serve(routes).run(addr).await;
 
     database_connection_pool.close().await;
 
