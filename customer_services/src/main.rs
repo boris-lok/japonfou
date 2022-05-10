@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
         .parse()
         .expect("Can't parse hosting address.");
 
-    tracing::info!(message = "starting server", %addr);
+    tracing::info!(message = "starting customer server", %addr);
 
     Server::builder()
         .add_service(CustomerServicesServer::new(customer_service))
