@@ -1,10 +1,13 @@
 use async_trait::async_trait;
+use futures::FutureExt;
 
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query};
 
+use crate::ID_GENERATOR;
 use common::json::customer::Customers;
 use common::json::order_item::{OrderItem, OrderItems};
 use common::json::product::Products;
+use common::order_item_pb::CreateOrderItemRequest;
 use common::util::alias::PostgresAcquire;
 
 use crate::order::repos::repo::OrderItemRepo;
@@ -61,5 +64,40 @@ impl OrderItemRepo for OrderItemRepoImpl {
         Ok(sqlx::query_as::<_, OrderItem>(&sql)
             .fetch_optional(&mut *conn)
             .await?)
+    }
+
+    async fn create(
+        &self,
+        req: CreateOrderItemRequest,
+        executor: impl PostgresAcquire<'_> + 'async_trait,
+    ) -> anyhow::Result<u64> {
+        let mut conn = executor.acquire().await.unwrap();
+
+        let id = async move { ID_GENERATOR.clone().lock().unwrap().next_id() }
+            .boxed()
+            .await as u64;
+
+        let sql = Query::insert()
+            .columns(vec![
+                OrderItems::Id,
+                OrderItems::CustomerId,
+                OrderItems::ProductId,
+                OrderItems::Quantity,
+                OrderItems::Status,
+                OrderItems::CreatedAt,
+            ])
+            .values_panic(vec![
+                id.into(),
+                req.customer_id.into(),
+                req.product_id.into(),
+                req.quantity.into(),
+                req.status.into(),
+                chrono::Utc::now().into(),
+            ])
+            .to_string(PostgresQueryBuilder);
+
+        let _ = sqlx::query(&sql).execute(&mut *conn).await?;
+
+        Ok(id)
     }
 }
