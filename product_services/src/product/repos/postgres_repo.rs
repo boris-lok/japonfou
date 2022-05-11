@@ -60,11 +60,13 @@ impl ProductRepo for ProductRepoImpl {
             Products::Currency,
             Products::Price,
             Products::CreatedAt,
+            Products::UpdatedAt,
+            Products::DeletedAt,
         ];
 
         let sql = Query::insert()
             .into_table(Products::Table)
-            .columns(cols.clone())
+            .columns(cols.clone().into_iter().take(5).collect::<Vec<_>>())
             .values_panic(vec![id.into(), name, currency, price, now])
             .returning(Query::select().columns(cols).take())
             .to_string(PostgresQueryBuilder);
