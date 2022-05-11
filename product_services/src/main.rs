@@ -8,7 +8,7 @@ use tonic::transport::Server;
 use common::config::base_config::Config;
 use common::config::id_generator_config::IdGeneratorConfig;
 use common::config::postgres_config::PostgresConfig;
-use common::pb::product_services_server::ProductServicesServer;
+use common::product_pb::product_services_server::ProductServicesServer;
 use common::util::connections::{create_database_connection, create_id_generator};
 use common::util::tools::tracing_initialize;
 

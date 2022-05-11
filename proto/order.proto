@@ -1,11 +1,13 @@
 syntax = "proto3";
-package grpc.order.item;
+package grpc.order;
 
 import "types.proto";
 
-service OrderItemServices {
+service OrderServices {
   rpc get(grpc.types.GetByIdRequest) returns (GetOrderItemResponse);
   rpc list(grpc.types.ListRequest) returns (ListOrderItemResponse);
+  rpc update(UpdateOrderItemRequest) returns (OrderItem);
+  rpc create(CreateOrderItemRequest) returns (OrderItem);
 }
 
 message GetOrderItemResponse {
@@ -16,11 +18,26 @@ message ListOrderItemResponse {
   repeated OrderItem items = 1;
 }
 
+message UpdateOrderItemRequest {
+  uint64 id = 1;
+  uint64 customer_id = 2;
+  uint64 product_id = 3;
+  uint32 quantity = 4;
+  uint32 status = 5;
+}
+
+message CreateOrderItemRequest {
+  uint64 customer_id = 1;
+  uint64 product_id = 2;
+  uint32 quantity = 3;
+  uint32 status = 4;
+}
 
 message OrderItem {
   message Customer {
     uint64 id = 1;
     string name = 2;
+    uint64 created_at = 3;
   }
 
   message Product {
@@ -28,6 +45,7 @@ message OrderItem {
     string name = 2;
     uint32 currency = 3;
     double price = 4;
+    uint64 created_at = 5;
   }
 
   uint64 id = 1;

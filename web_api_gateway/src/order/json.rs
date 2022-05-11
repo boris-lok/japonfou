@@ -4,9 +4,20 @@ use serde_repr::Deserialize_repr;
 #[derive(Deserialize, Debug)]
 pub struct CreateOrderItemRequest {
     pub customer_id: u64,
-    pub product_ids: u64,
+    pub product_id: u64,
     pub quantity: u16,
     pub status: OrderItemStatus,
+}
+
+impl From<CreateOrderItemRequest> for common::order_item_pb::CreateOrderItemRequest {
+    fn from(r: CreateOrderItemRequest) -> Self {
+        Self {
+            customer_id: r.customer_id,
+            product_id: r.product_id,
+            quantity: r.quantity as u32,
+            status: r.status as u32,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize_repr, PartialEq)]

@@ -6,8 +6,9 @@ use warp::Filter;
 
 use common::config::base_config::Config;
 use common::config::postgres_config::PostgresConfig;
-use common::pb::customer_services_client::CustomerServicesClient;
-use common::pb::product_services_client::ProductServicesClient;
+use common::customer_pb::customer_services_client::CustomerServicesClient;
+use common::order_item_pb::order_services_client::OrderServicesClient;
+use common::product_pb::product_services_client::ProductServicesClient;
 use common::util::connections::create_database_connection;
 use common::util::tools::tracing_initialize;
 
@@ -53,13 +54,27 @@ async fn main() -> Result<()> {
 
     let grpc_product_client = ProductServicesClient::connect(addr).await.unwrap();
 
-    let env = Env::new(true, grpc_customer_client, grpc_product_client);
+    let addr = dotenv::var("ORDER_CLIENT_ADDRESS")
+        .unwrap_or_else(|_| "http://127.0.0.1:10003".to_string())
+        .parse::<Endpoint>()
+        .expect("Can't parse hosting address.");
+
+    let grpc_order_client = OrderServicesClient::connect(addr).await.unwrap();
+
+    let env = Env::new(
+        true,
+        grpc_customer_client,
+        grpc_product_client,
+        grpc_order_client,
+    );
 
     let customer_routes = customer::routes::routes(env.clone());
     let product_routes = product::routes::routes(env.clone());
+    let order_routes = order::routes::routes(env.clone());
 
     let routes = customer_routes
         .or(product_routes)
+        .or(order_routes)
         .with(cors)
         .with(warp::trace::request())
         .recover(rejection_handler);

@@ -12,7 +12,7 @@ pub mod types {
     ));
 }
 
-pub mod pb {
+pub mod customer_pb {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/",
@@ -20,11 +20,24 @@ pub mod pb {
         "/",
         "grpc.customer.rs"
     ));
+}
+
+pub mod product_pb {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/",
         "gen",
         "/",
         "grpc.product.rs"
+    ));
+}
+
+pub mod order_item_pb {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/",
+        "gen",
+        "/",
+        "grpc.order.rs"
     ));
 }

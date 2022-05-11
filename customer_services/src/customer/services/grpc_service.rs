@@ -2,8 +2,8 @@ use sqlx::{Pool, Postgres};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
-use common::pb::customer_services_server::CustomerServices;
-use common::pb::{
+use common::customer_pb::customer_services_server::CustomerServices;
+use common::customer_pb::{
     CreateCustomerRequest, Customer, GetCustomerResponse, ListCustomerResponse,
     UpdateCustomerRequest,
 };
@@ -13,18 +13,18 @@ use common::util::tools::grpc_error_handler;
 use crate::customer::services::service::{CustomerService, CustomerServiceImpl};
 
 #[derive(Debug)]
-pub struct CustomerServicesImpl {
+pub struct GrpcCustomerServicesImpl {
     session: Pool<Postgres>,
 }
 
-impl CustomerServicesImpl {
+impl GrpcCustomerServicesImpl {
     pub fn new(session: Pool<Postgres>) -> Self {
         Self { session }
     }
 }
 
 #[tonic::async_trait]
-impl CustomerServices for CustomerServicesImpl {
+impl CustomerServices for GrpcCustomerServicesImpl {
     #[instrument]
     async fn create(
         &self,

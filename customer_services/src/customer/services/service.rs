@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 
+use common::customer_pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::json::customer::Customer;
-use common::pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;

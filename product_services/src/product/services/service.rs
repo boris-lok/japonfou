@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use sqlx::{Pool, Postgres};
 
 use common::json::product::Product;
-use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;

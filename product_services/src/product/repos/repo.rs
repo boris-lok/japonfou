@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use common::json::product::Product;
-use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 

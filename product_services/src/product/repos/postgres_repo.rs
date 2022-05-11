@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use sea_query::{Expr, PostgresQueryBuilder, Query};
 
 use common::json::product::{Product, Products};
-use common::pb::{CreateProductRequest, UpdateProductRequest};
+use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 

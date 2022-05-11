@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use common::{pb, types};
+use common::{customer_pb, types};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateCustomerRequest {
@@ -9,7 +9,7 @@ pub struct CreateCustomerRequest {
     pub phone: Option<String>,
 }
 
-impl From<CreateCustomerRequest> for pb::CreateCustomerRequest {
+impl From<CreateCustomerRequest> for customer_pb::CreateCustomerRequest {
     fn from(c: CreateCustomerRequest) -> Self {
         Self {
             name: c.name,
@@ -27,7 +27,7 @@ pub struct UpdateCustomerRequest {
     pub phone: Option<String>,
 }
 
-impl From<UpdateCustomerRequest> for pb::UpdateCustomerRequest {
+impl From<UpdateCustomerRequest> for customer_pb::UpdateCustomerRequest {
     fn from(c: UpdateCustomerRequest) -> Self {
         Self {
             id: c.id,

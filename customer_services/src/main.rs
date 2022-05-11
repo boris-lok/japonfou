@@ -8,11 +8,11 @@ use tonic::transport::Server;
 use common::config::base_config::Config;
 use common::config::id_generator_config::IdGeneratorConfig;
 use common::config::postgres_config::PostgresConfig;
-use common::pb::customer_services_server::CustomerServicesServer;
+use common::customer_pb::customer_services_server::CustomerServicesServer;
 use common::util::connections::{create_database_connection, create_id_generator};
 use common::util::tools::tracing_initialize;
 
-use crate::customer::services::grpc_service::CustomerServicesImpl;
+use crate::customer::services::grpc_service::GrpcCustomerServicesImpl;
 
 mod customer;
 
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         .await
         .expect("Can't connect to database.");
 
-    let customer_service = CustomerServicesImpl::new(database_connection);
+    let customer_service = GrpcCustomerServicesImpl::new(database_connection);
 
     let addr = dotenv::var("CUSTOMER_HOST_ADDRESS")
         .unwrap_or_else(|_| "127.0.0.1:10001".to_string())

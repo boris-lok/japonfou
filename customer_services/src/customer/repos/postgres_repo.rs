@@ -5,7 +5,7 @@ use sea_query::{Cond, Query};
 use sea_query::{Expr, PostgresQueryBuilder};
 
 use common::json::customer::{Customer, Customers};
-use common::pb::{CreateCustomerRequest, UpdateCustomerRequest};
+use common::customer_pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 

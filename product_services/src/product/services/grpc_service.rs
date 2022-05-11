@@ -3,10 +3,10 @@ use sqlx::{Pool, Postgres};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
-use common::pb::{
-    product_services_server::ProductServices, CreateProductRequest, GetProductResponse,
-    ListProductResponse, Product, UpdateProductRequest,
+use common::product_pb::{
+    CreateProductRequest, GetProductResponse, ListProductResponse, Product, UpdateProductRequest,
 };
+use common::product_pb::product_services_server::ProductServices;
 use common::types::{GetByIdRequest, ListRequest};
 use common::util::tools::grpc_error_handler;
 

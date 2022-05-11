@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use common::{pb, types};
+use common::{product_pb, types};
 
 #[derive(Deserialize)]
 pub struct CreateProductRequest {
@@ -9,7 +9,7 @@ pub struct CreateProductRequest {
     pub price: f64,
 }
 
-impl From<CreateProductRequest> for pb::CreateProductRequest {
+impl From<CreateProductRequest> for product_pb::CreateProductRequest {
     fn from(r: CreateProductRequest) -> Self {
         Self {
             name: r.name,
@@ -27,7 +27,7 @@ pub struct UpdateProductRequest {
     pub price: Option<f64>,
 }
 
-impl From<UpdateProductRequest> for pb::UpdateProductRequest {
+impl From<UpdateProductRequest> for product_pb::UpdateProductRequest {
     fn from(r: UpdateProductRequest) -> Self {
         Self {
             id: r.id,
