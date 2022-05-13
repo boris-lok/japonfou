@@ -10,7 +10,7 @@ pub fn routes(env: Env) -> BoxedFilter<(impl Reply,)> {
         .and(with_env(env.clone()))
         .and_then(get);
 
-    let create_route = warp::path!("api" / "v1" / "customers")
+    let create_route = warp::path!("api" / "v1" / "orders")
         .and(warp::post())
         .and(warp::body::json())
         .and(with_env(env))

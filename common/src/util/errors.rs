@@ -6,4 +6,6 @@ pub enum AppError {
     DatabaseError(String),
     #[error("try to make a connection, but it failed reason: {0}")]
     ConnectionError(String),
+    #[error("bad request reason: {0}")]
+    BadRequest(String),
 }
