@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 use tonic::{Request, Response, Status};
 
+use common::order_item_pb::order_services_server::OrderServices;
 use common::order_item_pb::{
     CreateOrderItemRequest, GetOrderItemResponse, ListOrderItemResponse, OrderItem,
     UpdateOrderItemRequest,
 };
-use common::order_item_pb::order_services_server::OrderServices;
 use common::types::{GetByIdRequest, ListRequest};
 use common::util::tools::grpc_error_handler;
 
@@ -41,9 +41,20 @@ impl OrderServices for GrpcOrderServiceImpl {
 
     async fn list(
         &self,
-        _request: Request<ListRequest>,
+        request: Request<ListRequest>,
     ) -> Result<Response<ListOrderItemResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let services = OrderItemServiceImpl::new(self.session.clone());
+
+        services
+            .list(req)
+            .await
+            .map(|e| {
+                let elements = e.into_iter().map(|o| o.into()).collect::<Vec<_>>();
+                ListOrderItemResponse { items: elements }
+            })
+            .map(Response::new)
+            .map_err(grpc_error_handler)
     }
 
     async fn update(

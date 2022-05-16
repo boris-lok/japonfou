@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use futures::FutureExt;
-use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query};
+use sea_query::{Cond, Expr, JoinType, PostgresQueryBuilder, Query};
 
 use common::json::customer::{Customer, Customers};
 use common::json::order_item::{OrderItem, OrderItems};
 use common::json::product::{Product, Products};
 use common::order_item_pb::CreateOrderItemRequest;
+use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
 use crate::order::repos::repo::{CustomerRepo, OrderItemRepo, ProductRepo};
@@ -104,6 +105,78 @@ impl OrderItemRepo for OrderItemRepoImpl {
         let _ = sqlx::query(&sql).execute(&mut *conn).await?;
 
         Ok(id)
+    }
+
+    async fn list(
+        &self,
+        req: ListRequest,
+        executor: impl PostgresAcquire<'_> + 'async_trait,
+    ) -> anyhow::Result<Vec<OrderItem>> {
+        let mut conn = executor.acquire().await.unwrap();
+
+        let order_item_cols = vec![
+            (OrderItems::Table, OrderItems::Id),
+            (OrderItems::Table, OrderItems::Quantity),
+            (OrderItems::Table, OrderItems::Status),
+            (OrderItems::Table, OrderItems::CreatedAt),
+            (OrderItems::Table, OrderItems::UpdatedAt),
+            (OrderItems::Table, OrderItems::DeletedAt),
+            (OrderItems::Table, OrderItems::CustomerId),
+            (OrderItems::Table, OrderItems::ProductId),
+        ];
+        let customer_cols = vec![
+            (Customers::Table, Customers::Name),
+            (Customers::Table, Customers::CreatedAt),
+        ];
+        let product_cols = vec![
+            (Products::Table, Products::Name),
+            (Products::Table, Products::Currency),
+            (Products::Table, Products::Price),
+            (Products::Table, Products::CreatedAt),
+        ];
+
+        let limit = req.page_size;
+        let offset = req.page * req.page_size;
+        let query = req.query.map(|q| format!("%{}%", q));
+
+        let sql = Query::select()
+            .columns(order_item_cols)
+            .columns(customer_cols)
+            .columns(product_cols)
+            .from(OrderItems::Table)
+            .join(
+                JoinType::InnerJoin,
+                Customers::Table,
+                Expr::tbl(OrderItems::Table, OrderItems::CustomerId)
+                    .equals(Customers::Table, Customers::Id),
+            )
+            .join(
+                JoinType::InnerJoin,
+                Products::Table,
+                Expr::tbl(OrderItems::Table, OrderItems::ProductId)
+                    .equals(Products::Table, Products::Id),
+            )
+            .cond_where(
+                Cond::any()
+                    .add_option(
+                        query
+                            .clone()
+                            .map(|q| Expr::tbl(Customers::Table, Customers::Name).like(&q)),
+                    )
+                    .add_option(
+                        query
+                            .clone()
+                            .map(|q| Expr::tbl(Customers::Table, Customers::Phone).like(&q)),
+                    )
+                    .add_option(query.map(|q| Expr::tbl(Products::Table, Products::Name).like(&q))),
+            )
+            .limit(limit)
+            .offset(offset)
+            .to_string(PostgresQueryBuilder);
+
+        Ok(sqlx::query_as::<_, OrderItem>(&sql)
+            .fetch_all(&mut *conn)
+            .await?)
     }
 }
 

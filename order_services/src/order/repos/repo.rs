@@ -5,6 +5,7 @@ use common::json::customer::Customer;
 use common::json::order_item::OrderItem;
 use common::json::product::Product;
 use common::order_item_pb::CreateOrderItemRequest;
+use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
 #[async_trait]
@@ -20,6 +21,12 @@ pub trait OrderItemRepo {
         req: CreateOrderItemRequest,
         executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> Result<u64>;
+
+    async fn list(
+        &self,
+        req: ListRequest,
+        executor: impl PostgresAcquire<'_> + 'async_trait,
+    ) -> Result<Vec<OrderItem>>;
 }
 
 #[async_trait]

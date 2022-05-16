@@ -3,8 +3,10 @@ use sqlx::{Pool, Postgres};
 
 use common::json::order_item::OrderItem;
 use common::order_item_pb::CreateOrderItemRequest;
+use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
+use common::util::tools::database_error_handler;
 
 use crate::order::repos::postgres_repo::{CustomerRepoImpl, OrderItemRepoImpl, ProductRepoImpl};
 use crate::order::repos::repo::{CustomerRepo, OrderItemRepo, ProductRepo};
@@ -14,6 +16,8 @@ pub trait OrderItemService {
     async fn get(&self, id: u64) -> AppResult<Option<OrderItem>>;
 
     async fn create(self, req: CreateOrderItemRequest) -> AppResult<OrderItem>;
+
+    async fn list(self, req: ListRequest) -> AppResult<Vec<OrderItem>>;
 }
 
 pub struct OrderItemServiceImpl {
@@ -33,7 +37,7 @@ impl OrderItemService for OrderItemServiceImpl {
 
         repo.get(id, &self.pool.clone())
             .await
-            .map_err(|e| AppError::DatabaseError(e.to_string()))
+            .map_err(database_error_handler)
     }
 
     async fn create(self, req: CreateOrderItemRequest) -> AppResult<OrderItem> {
@@ -81,7 +85,7 @@ impl OrderItemService for OrderItemServiceImpl {
                 .get(new_id, &mut *tx)
                 .await
                 .map(|o| o.unwrap())
-                .map_err(|err| AppError::DatabaseError(err.to_string()));
+                .map_err(database_error_handler);
 
             tx.commit().await.unwrap();
 
@@ -91,5 +95,13 @@ impl OrderItemService for OrderItemServiceImpl {
         }
 
         Err(AppError::DatabaseError(result.err().unwrap().to_string()))
+    }
+
+    async fn list(self, req: ListRequest) -> AppResult<Vec<OrderItem>> {
+        let repo = OrderItemRepoImpl;
+
+        repo.list(req, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 }

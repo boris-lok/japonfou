@@ -51,3 +51,16 @@ pub fn grpc_error_handler(err: AppError) -> Status {
     tracing::error!(message = msg.as_str());
     Status::failed_precondition(msg)
 }
+
+/// handle database error.
+///
+/// param:
+/// - err: anyhow error.
+///
+/// return:
+/// - AppError
+pub fn database_error_handler(err: anyhow::Error) -> AppError {
+    let msg = err.to_string();
+    tracing::error!(message = msg.as_str());
+    AppError::DatabaseError(msg)
+}
