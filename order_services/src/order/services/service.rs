@@ -1,8 +1,9 @@
 use async_trait::async_trait;
+use futures::TryFutureExt;
 use sqlx::{Pool, Postgres};
 
 use common::json::order_item::OrderItem;
-use common::order_item_pb::CreateOrderItemRequest;
+use common::order_item_pb::{CreateOrderItemRequest, UpdateOrderItemRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
@@ -18,6 +19,8 @@ pub trait OrderItemService {
     async fn create(self, req: CreateOrderItemRequest) -> AppResult<OrderItem>;
 
     async fn list(self, req: ListRequest) -> AppResult<Vec<OrderItem>>;
+
+    async fn update(self, req: UpdateOrderItemRequest) -> AppResult<OrderItem>;
 }
 
 pub struct OrderItemServiceImpl {
@@ -103,5 +106,70 @@ impl OrderItemService for OrderItemServiceImpl {
         repo.list(req, &self.pool.clone())
             .await
             .map_err(database_error_handler)
+    }
+
+    async fn update(self, req: UpdateOrderItemRequest) -> AppResult<OrderItem> {
+        let order_item_repo = OrderItemRepoImpl;
+        let customer_repo = CustomerRepoImpl;
+        let product_repo = ProductRepoImpl;
+
+        let mut tx = self.pool.begin().await.unwrap();
+
+        let old_order_item = order_item_repo.get(req.id, &mut *tx).await.ok().flatten();
+
+        if old_order_item.is_none() {
+            tx.rollback().await.unwrap();
+            return Err(AppError::BadRequest(format!(
+                "Can't find the order item by id: {}",
+                req.id
+            )));
+        }
+
+        if let Some(customer_id) = req.customer_id {
+            let customer = customer_repo
+                .get(customer_id, &mut *tx)
+                .await
+                .ok()
+                .flatten();
+
+            if customer.is_none() {
+                tx.rollback().await.unwrap();
+                return Err(AppError::BadRequest(format!(
+                    "Can't update the order item by id: {}, because customer {} is not exist.",
+                    req.id, customer_id
+                )));
+            }
+        }
+
+        if let Some(product_id) = req.product_id {
+            let product = product_repo.get(product_id, &mut *tx).await.ok().flatten();
+
+            if product.is_none() {
+                tx.rollback().await.unwrap();
+                return Err(AppError::BadRequest(format!(
+                    "Can't update the order item by id: {}, because product {} is not exist.",
+                    req.id, product_id
+                )));
+            }
+        }
+
+        let id = req.id;
+        let is_affected = order_item_repo.update(req, &mut *tx).await;
+
+        tx.commit().await.unwrap();
+
+        if is_affected.is_ok() {
+            let new_order_item = order_item_repo
+                .get(id, &self.pool.clone())
+                .await
+                .map(|o| o.unwrap())
+                .map_err(database_error_handler);
+            return new_order_item;
+        }
+
+        return Err(AppError::DatabaseError(format!(
+            "Can't update order item by id: {}",
+            id
+        )));
     }
 }

@@ -20,10 +20,10 @@ message ListOrderItemResponse {
 
 message UpdateOrderItemRequest {
   uint64 id = 1;
-  uint64 customer_id = 2;
-  uint64 product_id = 3;
-  uint32 quantity = 4;
-  uint32 status = 5;
+  optional uint64 customer_id = 2;
+  optional uint64 product_id = 3;
+  optional uint32 quantity = 4;
+  optional uint32 status = 5;
 }
 
 message CreateOrderItemRequest {

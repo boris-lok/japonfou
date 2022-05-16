@@ -59,9 +59,16 @@ impl OrderServices for GrpcOrderServiceImpl {
 
     async fn update(
         &self,
-        _request: Request<UpdateOrderItemRequest>,
+        request: Request<UpdateOrderItemRequest>,
     ) -> Result<Response<OrderItem>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let services = OrderItemServiceImpl::new(self.session.clone());
+
+        services
+            .update(req)
+            .await
+            .map(|e| Response::new(e.into()))
+            .map_err(grpc_error_handler)
     }
 
     async fn create(

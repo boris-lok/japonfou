@@ -12,14 +12,14 @@ pub struct ListOrderItemResponse {
 pub struct UpdateOrderItemRequest {
     #[prost(uint64, tag="1")]
     pub id: u64,
-    #[prost(uint64, tag="2")]
-    pub customer_id: u64,
-    #[prost(uint64, tag="3")]
-    pub product_id: u64,
-    #[prost(uint32, tag="4")]
-    pub quantity: u32,
-    #[prost(uint32, tag="5")]
-    pub status: u32,
+    #[prost(uint64, optional, tag="2")]
+    pub customer_id: ::core::option::Option<u64>,
+    #[prost(uint64, optional, tag="3")]
+    pub product_id: ::core::option::Option<u64>,
+    #[prost(uint32, optional, tag="4")]
+    pub quantity: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag="5")]
+    pub status: ::core::option::Option<u32>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateOrderItemRequest {

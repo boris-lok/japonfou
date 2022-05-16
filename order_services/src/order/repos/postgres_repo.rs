@@ -5,7 +5,7 @@ use sea_query::{Cond, Expr, JoinType, PostgresQueryBuilder, Query};
 use common::json::customer::{Customer, Customers};
 use common::json::order_item::{OrderItem, OrderItems};
 use common::json::product::{Product, Products};
-use common::order_item_pb::CreateOrderItemRequest;
+use common::order_item_pb::{CreateOrderItemRequest, UpdateOrderItemRequest};
 use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
@@ -177,6 +177,43 @@ impl OrderItemRepo for OrderItemRepoImpl {
         Ok(sqlx::query_as::<_, OrderItem>(&sql)
             .fetch_all(&mut *conn)
             .await?)
+    }
+
+    async fn update(
+        &self,
+        req: UpdateOrderItemRequest,
+        executor: impl PostgresAcquire<'_> + 'async_trait,
+    ) -> anyhow::Result<bool> {
+        let mut conn = executor.acquire().await.unwrap();
+
+        let mut update_values = vec![];
+
+        if let Some(customer_id) = req.customer_id {
+            update_values.push((OrderItems::CustomerId, customer_id.into()));
+        }
+
+        if let Some(product_id) = req.product_id {
+            update_values.push((OrderItems::ProductId, product_id.into()));
+        }
+
+        if let Some(quantity) = req.quantity {
+            update_values.push((OrderItems::Quantity, quantity.into()));
+        }
+
+        if let Some(status) = req.status {
+            update_values.push((OrderItems::Status, status.into()));
+        }
+
+        let sql = Query::update()
+            .table(OrderItems::Table)
+            .values(update_values)
+            .and_where(Expr::tbl(OrderItems::Table, OrderItems::Id).eq(req.id))
+            .to_string(PostgresQueryBuilder);
+
+        Ok(sqlx::query(&sql)
+            .execute(&mut *conn)
+            .await
+            .map(|e| e.rows_affected() > 0)?)
     }
 }
 
