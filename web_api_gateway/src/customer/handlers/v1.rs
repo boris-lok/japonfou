@@ -9,7 +9,7 @@ use crate::util::env::Env;
 
 use crate::util::recover::custom_error_handler;
 
-pub async fn get(req: u64, env: Env) -> WebResult<impl Reply> {
+pub(crate) async fn get(req: u64, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
     client
@@ -28,7 +28,7 @@ pub async fn get(req: u64, env: Env) -> WebResult<impl Reply> {
         .map_err(custom_error_handler)
 }
 
-pub async fn create(req: CreateCustomerRequest, env: Env) -> WebResult<impl Reply> {
+pub(crate) async fn create(req: CreateCustomerRequest, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
     let req: customer_pb::CreateCustomerRequest = req.into();
@@ -43,7 +43,7 @@ pub async fn create(req: CreateCustomerRequest, env: Env) -> WebResult<impl Repl
         .map_err(custom_error_handler)
 }
 
-pub async fn update(req: UpdateCustomerRequest, env: Env) -> WebResult<impl Reply> {
+pub(crate) async fn update(req: UpdateCustomerRequest, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
     let req: customer_pb::UpdateCustomerRequest = req.into();
@@ -58,7 +58,7 @@ pub async fn update(req: UpdateCustomerRequest, env: Env) -> WebResult<impl Repl
         .map_err(custom_error_handler)
 }
 
-pub async fn list(req: ListCustomerRequest, env: Env) -> WebResult<impl Reply> {
+pub(crate) async fn list(req: ListCustomerRequest, env: Env) -> WebResult<impl Reply> {
     let mut client = env.grpc_customer_client;
 
     let req: types::ListRequest = req.into();
