@@ -4,7 +4,10 @@ use common::json::order_item::OrderItem;
 use common::types::ListRequest;
 use common::{order_item_pb, types};
 
-use crate::order::json::{CreateOrderItemRequest, ListOrderItemsRequest, UpdateOrderItemRequest};
+use crate::order::json::{
+    CreateOrderItemRequest, ListOrderItemsRequest, UpdateOrderItemRequest,
+    UpdateOrderItemStatusRequest,
+};
 use crate::util::alias::WebResult;
 use crate::util::recover::custom_error_handler;
 use crate::Env;
@@ -75,5 +78,20 @@ pub(crate) async fn update(req: UpdateOrderItemRequest, env: Env) -> WebResult<i
             let res: OrderItem = item.into_inner().into();
             warp::reply::json(&res)
         })
+        .map_err(custom_error_handler)
+}
+
+pub(crate) async fn update_items_status(
+    req: UpdateOrderItemStatusRequest,
+    env: Env,
+) -> WebResult<impl Reply> {
+    let mut client = env.grpc_order_client;
+
+    let req: common::order_item_pb::UpdateOrderItemsStatusRequest = req.into();
+
+    client
+        .update_order_items_status(req)
+        .await
+        .map(|_| warp::reply::reply())
         .map_err(custom_error_handler)
 }

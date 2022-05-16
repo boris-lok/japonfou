@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use common::json::customer::Customer;
 use common::json::order_item::OrderItem;
 use common::json::product::Product;
-use common::order_item_pb::{CreateOrderItemRequest, UpdateOrderItemRequest};
+use common::order_item_pb::{
+    CreateOrderItemRequest, UpdateOrderItemRequest, UpdateOrderItemsStatusRequest,
+};
 use common::types::ListRequest;
 use common::util::alias::PostgresAcquire;
 
@@ -31,6 +33,12 @@ pub trait OrderItemRepo {
     async fn update(
         &self,
         req: UpdateOrderItemRequest,
+        executor: impl PostgresAcquire<'_> + 'async_trait,
+    ) -> Result<bool>;
+
+    async fn update_items_status(
+        &self,
+        req: UpdateOrderItemsStatusRequest,
         executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> Result<bool>;
 }

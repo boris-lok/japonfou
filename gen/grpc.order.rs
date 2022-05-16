@@ -33,6 +33,18 @@ pub struct CreateOrderItemRequest {
     pub status: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateOrderItemsStatusRequest {
+    #[prost(uint64, repeated, tag="1")]
+    pub ids: ::prost::alloc::vec::Vec<u64>,
+    #[prost(uint32, tag="2")]
+    pub status: u32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateOrderItemsStatusResponse {
+    #[prost(bool, tag="1")]
+    pub result: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OrderItem {
     #[prost(uint64, tag="1")]
     pub id: u64,
@@ -216,6 +228,28 @@ pub mod order_services_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        pub async fn update_order_items_status(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpdateOrderItemsStatusRequest>,
+        ) -> Result<
+                tonic::Response<super::UpdateOrderItemsStatusResponse>,
+                tonic::Status,
+            > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/grpc.order.OrderServices/update_order_items_status",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -241,6 +275,13 @@ pub mod order_services_server {
             &self,
             request: tonic::Request<super::CreateOrderItemRequest>,
         ) -> Result<tonic::Response<super::OrderItem>, tonic::Status>;
+        async fn update_order_items_status(
+            &self,
+            request: tonic::Request<super::UpdateOrderItemsStatusRequest>,
+        ) -> Result<
+                tonic::Response<super::UpdateOrderItemsStatusResponse>,
+                tonic::Status,
+            >;
     }
     #[derive(Debug)]
     pub struct OrderServicesServer<T: OrderServices> {
@@ -430,6 +471,46 @@ pub mod order_services_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = createSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/grpc.order.OrderServices/update_order_items_status" => {
+                    #[allow(non_camel_case_types)]
+                    struct update_order_items_statusSvc<T: OrderServices>(pub Arc<T>);
+                    impl<
+                        T: OrderServices,
+                    > tonic::server::UnaryService<super::UpdateOrderItemsStatusRequest>
+                    for update_order_items_statusSvc<T> {
+                        type Response = super::UpdateOrderItemsStatusResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UpdateOrderItemsStatusRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).update_order_items_status(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = update_order_items_statusSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

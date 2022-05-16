@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 
 use common::json::order_item::OrderItem;
-use common::order_item_pb::{CreateOrderItemRequest, UpdateOrderItemRequest};
+use common::order_item_pb::{
+    CreateOrderItemRequest, UpdateOrderItemRequest, UpdateOrderItemsStatusRequest,
+};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
@@ -20,6 +22,8 @@ pub trait OrderItemService {
     async fn list(self, req: ListRequest) -> AppResult<Vec<OrderItem>>;
 
     async fn update(self, req: UpdateOrderItemRequest) -> AppResult<OrderItem>;
+
+    async fn update_items_status(self, req: UpdateOrderItemsStatusRequest) -> AppResult<bool>;
 }
 
 pub struct OrderItemServiceImpl {
@@ -170,5 +174,13 @@ impl OrderItemService for OrderItemServiceImpl {
             "Can't update order item by id: {}",
             id
         )));
+    }
+
+    async fn update_items_status(self, req: UpdateOrderItemsStatusRequest) -> AppResult<bool> {
+        let repo = OrderItemRepoImpl;
+
+        repo.update_items_status(req, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 }

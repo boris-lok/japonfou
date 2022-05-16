@@ -5,7 +5,7 @@ use tonic::{Request, Response, Status};
 use common::order_item_pb::order_services_server::OrderServices;
 use common::order_item_pb::{
     CreateOrderItemRequest, GetOrderItemResponse, ListOrderItemResponse, OrderItem,
-    UpdateOrderItemRequest,
+    UpdateOrderItemRequest, UpdateOrderItemsStatusRequest, UpdateOrderItemsStatusResponse,
 };
 use common::types::{GetByIdRequest, ListRequest};
 use common::util::tools::grpc_error_handler;
@@ -81,6 +81,20 @@ impl OrderServices for GrpcOrderServiceImpl {
             .create(request.into_inner())
             .await
             .map(|o| Response::new(o.into()))
+            .map_err(grpc_error_handler)
+    }
+
+    async fn update_order_items_status(
+        &self,
+        request: Request<UpdateOrderItemsStatusRequest>,
+    ) -> Result<Response<UpdateOrderItemsStatusResponse>, Status> {
+        let services = OrderItemServiceImpl::new(self.session.clone());
+
+        services
+            .update_items_status(request.into_inner())
+            .await
+            .map(|e| UpdateOrderItemsStatusResponse { result: e })
+            .map(Response::new)
             .map_err(grpc_error_handler)
     }
 }

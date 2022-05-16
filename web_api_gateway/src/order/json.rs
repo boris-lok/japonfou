@@ -57,6 +57,15 @@ pub struct UpdateOrderItemStatusRequest {
     pub status: OrderItemStatus,
 }
 
+impl From<UpdateOrderItemStatusRequest> for common::order_item_pb::UpdateOrderItemsStatusRequest {
+    fn from(r: UpdateOrderItemStatusRequest) -> Self {
+        Self {
+            ids: r.ids,
+            status: r.status as u32,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ListOrderItemsRequest {
     pub query: Option<String>,
