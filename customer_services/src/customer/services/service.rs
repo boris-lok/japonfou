@@ -6,6 +6,7 @@ use common::json::customer::Customer;
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
+use common::util::tools::database_error_handler;
 
 use crate::customer::repos::postgres_repo::CustomerRepoImpl;
 use crate::customer::repos::repo::CustomerRepo;
@@ -36,10 +37,9 @@ impl CustomerService for CustomerServiceImpl {
     async fn get(&self, id: i64) -> AppResult<Option<Customer>> {
         let repo = CustomerRepoImpl;
 
-        repo.get(id, &self.pool.clone()).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        })
+        repo.get(id, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 
     async fn create(&self, request: CreateCustomerRequest) -> AppResult<Customer> {
@@ -47,10 +47,10 @@ impl CustomerService for CustomerServiceImpl {
 
         let mut tx = self.pool.begin().await.unwrap();
 
-        let customer = repo.create(request, &mut *tx).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        });
+        let customer = repo
+            .create(request, &mut *tx)
+            .await
+            .map_err(database_error_handler);
 
         let _ = tx.commit().await.unwrap();
 
@@ -60,10 +60,9 @@ impl CustomerService for CustomerServiceImpl {
     async fn list(&self, request: ListRequest) -> AppResult<Vec<Customer>> {
         let repo = CustomerRepoImpl;
 
-        repo.list(request, &self.pool.clone()).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        })
+        repo.list(request, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 
     async fn update(&self, request: UpdateCustomerRequest) -> AppResult<Customer> {

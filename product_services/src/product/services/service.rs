@@ -7,6 +7,7 @@ use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
+use common::util::tools::database_error_handler;
 
 use crate::product::repos::postgres_repo::ProductRepoImpl;
 use crate::product::repos::repo::ProductRepo;
@@ -37,10 +38,9 @@ impl ProductService for ProductServiceImpl {
     async fn get(&self, id: i64) -> AppResult<Option<Product>> {
         let repo = ProductRepoImpl;
 
-        repo.get(id, &self.pool.clone()).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        })
+        repo.get(id, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 
     async fn create(&self, request: CreateProductRequest) -> AppResult<Product> {
@@ -48,10 +48,10 @@ impl ProductService for ProductServiceImpl {
 
         let mut tx = self.pool.begin().await.unwrap();
 
-        let product = repo.create(request, &mut *tx).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        });
+        let product = repo
+            .create(request, &mut *tx)
+            .await
+            .map_err(database_error_handler);
 
         let _ = tx.commit().await.unwrap();
 
@@ -99,9 +99,8 @@ impl ProductService for ProductServiceImpl {
     async fn list(&self, request: ListRequest) -> AppResult<Vec<Product>> {
         let repo = ProductRepoImpl;
 
-        repo.list(request, &self.pool.clone()).await.map_err(|e| {
-            let msg = e.to_string();
-            AppError::DatabaseError(msg)
-        })
+        repo.list(request, &self.pool.clone())
+            .await
+            .map_err(database_error_handler)
     }
 }
