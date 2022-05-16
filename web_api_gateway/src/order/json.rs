@@ -1,3 +1,4 @@
+use common::types::ListRequest;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
@@ -38,6 +39,18 @@ pub struct UpdateOrderItemRequest {
     pub status: Option<OrderItemStatus>,
 }
 
+impl From<UpdateOrderItemRequest> for common::order_item_pb::UpdateOrderItemRequest {
+    fn from(r: UpdateOrderItemRequest) -> Self {
+        Self {
+            id: r.id,
+            customer_id: r.customer_id,
+            product_id: r.product_id,
+            quantity: r.quantity.map(|e| e as u32),
+            status: r.status.map(|e| e as u32),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UpdateOrderItemStatusRequest {
     pub ids: Vec<u64>,
@@ -49,4 +62,14 @@ pub struct ListOrderItemsRequest {
     pub query: Option<String>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
+}
+
+impl From<ListOrderItemsRequest> for ListRequest {
+    fn from(r: ListOrderItemsRequest) -> Self {
+        Self {
+            query: r.query,
+            page: r.page.unwrap_or(0),
+            page_size: r.page_size.unwrap_or(20),
+        }
+    }
 }

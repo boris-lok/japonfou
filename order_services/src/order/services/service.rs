@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use futures::TryFutureExt;
 use sqlx::{Pool, Postgres};
 
 use common::json::order_item::OrderItem;
