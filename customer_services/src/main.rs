@@ -18,6 +18,8 @@ mod customer;
 
 lazy_static! {
     static ref ID_GENERATOR: Arc<Mutex<SnowflakeGenerator>> = {
+        let env_file = concat!(env!("CARGO_MANIFEST_DIR"), "/", "env", "/", "dev.env");
+        let _ = dotenv::from_path(env_file);
         let config = IdGeneratorConfig::new();
         let generator = create_id_generator(config);
         Arc::new(Mutex::new(generator))
