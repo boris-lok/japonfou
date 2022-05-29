@@ -1,3 +1,4 @@
+use std::cmp::min;
 use crate::customer::repos::repo::CustomerRepo;
 use crate::ID_GENERATOR;
 use async_trait::async_trait;
@@ -48,7 +49,9 @@ impl CustomerRepo for FakeCustomerRepo {
 
     async fn list(&self, req: ListRequest) -> anyhow::Result<Vec<Customer>> {
         let session = self.session.lock().await;
-        let c = session
+        let offset = (req.page * req.page_size) as usize;
+        let end = offset + req.page_size as usize;
+        let mut c = session
             .values()
             .filter(|e| {
                 if let Some(q) = req.query.to_owned() {
@@ -67,7 +70,11 @@ impl CustomerRepo for FakeCustomerRepo {
             })
             .map(|c| c.to_owned())
             .collect::<Vec<_>>();
-        Ok(c)
+
+        let start = min(offset, c.len());
+        let end = min(end, c.len());
+
+        Ok(c.drain(start..end).collect::<Vec<_>>())
     }
 
     async fn update(&self, req: UpdateCustomerRequest) -> anyhow::Result<bool> {
@@ -94,18 +101,70 @@ mod test {
 
     #[tokio::test]
     async fn can_create_customer() {
-        let c = CreateCustomerRequest {
-            name: "boris".to_string(),
-            email: None,
-            phone: None,
-        };
-
         let repo = FakeCustomerRepo::new();
-        let res = repo.create(c).await;
+        let res = create_fake_customer(&repo, "boris".to_string(), None, None).await;
         assert!(res.is_ok());
         assert_eq!(res.as_ref().unwrap().name, "boris");
         assert_eq!(res.as_ref().unwrap().phone, None);
         assert_eq!(res.as_ref().unwrap().email, None);
-        assert_ne!(Some(res.unwrap().created_at), None)
+    }
+
+    #[tokio::test]
+    async fn can_get_customer() {
+        let repo = FakeCustomerRepo::new();
+        let res = create_fake_customer(&repo, "boris".to_string(), None, None).await;
+        let id = res.unwrap().id;
+        let res = repo.get(id).await;
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert!(res.is_some());
+        assert_eq!(res.as_ref().unwrap().name, "boris");
+        assert_eq!(res.as_ref().unwrap().phone, None);
+        assert_eq!(res.as_ref().unwrap().email, None);
+    }
+
+    #[tokio::test]
+    async fn can_update_customer() {
+        let repo = FakeCustomerRepo::new();
+        let res = create_fake_customer(&repo, "boris".to_string(), None, None).await;
+        let req = UpdateCustomerRequest {
+            id: res.as_ref().unwrap().id as u64,
+            name: None,
+            email: Some("boris.lok@gmail.com".to_string()),
+            phone: Some("1234567890".to_string()),
+        };
+        let res = repo.update(req).await;
+        assert!(res.unwrap());
+    }
+
+    #[tokio::test]
+    async fn can_list_customers() {
+        let repo = FakeCustomerRepo::new();
+        for i in 0..12 {
+            let _ = create_fake_customer(&repo, format!("boris:{}", i), None, None).await;
+        }
+        let req = ListRequest {
+            query: None,
+            page: 0,
+            page_size: 10
+        };
+        let res = repo.list(req).await;
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert_eq!(res.len(), 10);
+    }
+
+    async fn create_fake_customer(
+        repo: &dyn CustomerRepo,
+        name: String,
+        email: Option<String>,
+        phone: Option<String>
+    ) -> anyhow::Result<Customer> {
+        let req = CreateCustomerRequest {
+            name,
+            email,
+            phone,
+        };
+        repo.create(req).await
     }
 }
