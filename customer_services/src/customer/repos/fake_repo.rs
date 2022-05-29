@@ -1,4 +1,3 @@
-use std::cmp::min;
 use crate::customer::repos::repo::CustomerRepo;
 use crate::ID_GENERATOR;
 use async_trait::async_trait;
@@ -7,6 +6,7 @@ use common::json::customer::Customer;
 use common::types::ListRequest;
 use futures::lock::Mutex;
 use futures::FutureExt;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -14,6 +14,7 @@ pub(crate) struct FakeCustomerRepo {
     session: Arc<Mutex<HashMap<i64, Customer>>>,
 }
 
+#[cfg(test)]
 impl FakeCustomerRepo {
     pub(crate) fn new() -> Self {
         Self {
@@ -146,7 +147,7 @@ mod test {
         let req = ListRequest {
             query: None,
             page: 0,
-            page_size: 10
+            page_size: 10,
         };
         let res = repo.list(req).await;
         assert!(res.is_ok());
@@ -158,13 +159,9 @@ mod test {
         repo: &dyn CustomerRepo,
         name: String,
         email: Option<String>,
-        phone: Option<String>
+        phone: Option<String>,
     ) -> anyhow::Result<Customer> {
-        let req = CreateCustomerRequest {
-            name,
-            email,
-            phone,
-        };
+        let req = CreateCustomerRequest { name, email, phone };
         repo.create(req).await
     }
 }

@@ -1,5 +1,10 @@
+use anyhow::Result;
 use async_trait::async_trait;
-use sqlx::{Pool, Postgres};
+use futures::lock::Mutex;
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
+use std::ops::DerefMut;
+use std::sync::Arc;
 
 use common::customer_pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::json::customer::Customer;
@@ -12,7 +17,7 @@ use crate::customer::repos::postgres_repo::CustomerRepoImpl;
 use crate::customer::repos::repo::CustomerRepo;
 
 #[async_trait]
-pub trait CustomerService {
+pub(crate) trait CustomerService {
     async fn get(&self, id: i64) -> AppResult<Option<Customer>>;
 
     async fn create(&self, request: CreateCustomerRequest) -> AppResult<Customer>;
@@ -22,83 +27,91 @@ pub trait CustomerService {
     async fn update(&self, request: UpdateCustomerRequest) -> AppResult<Customer>;
 }
 
-pub struct CustomerServiceImpl {
-    pool: Pool<Postgres>,
+pub(crate) struct CustomerServiceImpl {
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+    repo: Box<dyn CustomerRepo + Sync + Send>,
 }
 
 impl CustomerServiceImpl {
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self { pool }
+    pub fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        let repo = CustomerRepoImpl::new(session.clone());
+        Self {
+            session,
+            repo: Box::new(repo),
+        }
+    }
+
+    async fn begin(&self) -> Result<bool> {
+        let mut conn = self.session.lock().await;
+
+        Ok(sqlx::query("BEGIN;")
+            .execute(conn.deref_mut())
+            .await
+            .map(|row| row.rows_affected() > 0)?)
+    }
+
+    async fn commit(&self) -> Result<bool> {
+        let mut conn = self.session.lock().await;
+
+        Ok(sqlx::query("COMMIT;")
+            .execute(conn.deref_mut())
+            .await
+            .map(|row| row.rows_affected() > 0)?)
+    }
+
+    async fn rollback(&self) -> Result<bool> {
+        let mut conn = self.session.lock().await;
+
+        Ok(sqlx::query("ROLLBACK;")
+            .execute(conn.deref_mut())
+            .await
+            .map(|row| row.rows_affected() > 0)?)
     }
 }
 
 #[async_trait]
 impl CustomerService for CustomerServiceImpl {
     async fn get(&self, id: i64) -> AppResult<Option<Customer>> {
-        todo!()
-        // let repo = CustomerRepoImpl;
-        //
-        // repo.get(id, &self.pool.clone())
-        //     .await
-        //     .map_err(database_error_handler)
+        self.repo.get(id).await.map_err(database_error_handler)
     }
 
     async fn create(&self, request: CreateCustomerRequest) -> AppResult<Customer> {
-        todo!()
-        // let repo = CustomerRepoImpl;
-        //
-        // let mut tx = self.pool.begin().await.unwrap();
-        //
-        // let customer = repo
-        //     .create(request, &mut *tx)
-        //     .await
-        //     .map_err(database_error_handler);
-        //
-        // let _ = tx.commit().await.unwrap();
-        //
-        // customer
+        // TODO: check and validate the data.
+        self.repo.create(request).await.map_err(database_error_handler)
     }
 
     async fn list(&self, request: ListRequest) -> AppResult<Vec<Customer>> {
-        todo!()
-        // let repo = CustomerRepoImpl;
-        //
-        // repo.list(request, &self.pool.clone())
-        //     .await
-        //     .map_err(database_error_handler)
+        self.repo.list(request).await.map_err(database_error_handler)
     }
 
     async fn update(&self, request: UpdateCustomerRequest) -> AppResult<Customer> {
-        todo!()
-        // let repo = CustomerRepoImpl;
-        //
-        // let mut tx = self.pool.begin().await.unwrap();
-        //
-        // let old_customer = repo.get(request.id as i64, &mut *tx).await.ok().flatten();
-        //
-        // if let Some(c) = old_customer {
-        //     let is_affected = repo.update(request.clone(), &mut *tx).await;
-        //
-        //     tx.commit().await.unwrap();
-        //
-        //     if is_affected.is_ok() {
-        //         let new_customer = Customer {
-        //             name: request.name.unwrap_or(c.name),
-        //             email: request.email.to_owned(),
-        //             phone: request.phone.to_owned(),
-        //             ..c
-        //         };
-        //
-        //         return Ok(new_customer);
-        //     }
-        //
-        //     return Ok(c);
-        // } else {
-        //     tx.rollback().await.unwrap();
-        // }
-        //
-        // Err(AppError::DatabaseError(
-        //     "failed to update customer.".to_string(),
-        // ))
+        let _ = self.begin().await;
+
+        let old_customer = self.repo.get(request.id as i64).await.ok().flatten();
+
+        if let Some(c) = old_customer {
+            let is_affected = self.repo.update(request.clone()).await;
+
+            let _ = self.commit().await;
+
+            if is_affected.is_ok() {
+                let new_customer = Customer {
+                    name: request.name.unwrap_or(c.name),
+                    email: request.email.to_owned(),
+                    phone: request.phone.to_owned(),
+                    ..c
+                };
+
+                return Ok(new_customer);
+            }
+
+            return Ok(c);
+        } else {
+            let _ = self.rollback().await;
+        }
+
+        Err(AppError::DatabaseError(
+            "failed to update customer.".to_string(),
+        ))
     }
 }

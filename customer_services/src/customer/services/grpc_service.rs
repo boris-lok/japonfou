@@ -1,4 +1,8 @@
+use anyhow::Result;
+use futures::lock::Mutex;
+use sqlx::pool::PoolConnection;
 use sqlx::{Pool, Postgres};
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -13,26 +17,34 @@ use common::util::tools::grpc_error_handler;
 use crate::customer::services::service::{CustomerService, CustomerServiceImpl};
 
 #[derive(Debug)]
-pub struct GrpcCustomerServicesImpl {
-    session: Pool<Postgres>,
+pub(crate) struct GrpcCustomerServicesImpl {
+    pool: Pool<Postgres>,
 }
 
 impl GrpcCustomerServicesImpl {
-    pub fn new(session: Pool<Postgres>) -> Self {
-        Self { session }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        Self { pool }
+    }
+
+    async fn get_session(&self) -> Result<Arc<Mutex<PoolConnection<Postgres>>>> {
+        let conn = self.pool.acquire().await?;
+
+        Ok(Arc::new(Mutex::new(conn)))
     }
 }
 
 #[tonic::async_trait]
 impl CustomerServices for GrpcCustomerServicesImpl {
+    // TODO: handle get_session error.
     #[instrument]
     async fn create(
         &self,
         request: Request<CreateCustomerRequest>,
     ) -> Result<Response<Customer>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = CustomerServiceImpl::new(self.session.clone());
+        let services = CustomerServiceImpl::new(session);
 
         services
             .create(request)
@@ -47,8 +59,9 @@ impl CustomerServices for GrpcCustomerServicesImpl {
         request: Request<UpdateCustomerRequest>,
     ) -> Result<Response<Customer>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = CustomerServiceImpl::new(self.session.clone());
+        let services = CustomerServiceImpl::new(session);
 
         services
             .update(request)
@@ -64,8 +77,9 @@ impl CustomerServices for GrpcCustomerServicesImpl {
         request: Request<GetByIdRequest>,
     ) -> Result<Response<GetCustomerResponse>, Status> {
         let id = request.into_inner().id;
+        let session = self.get_session().await.unwrap();
 
-        let services = CustomerServiceImpl::new(self.session.clone());
+        let services = CustomerServiceImpl::new(session);
 
         services
             .get(id as i64)
@@ -81,8 +95,9 @@ impl CustomerServices for GrpcCustomerServicesImpl {
         request: Request<ListRequest>,
     ) -> Result<Response<ListCustomerResponse>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = CustomerServiceImpl::new(self.session.clone());
+        let services = CustomerServiceImpl::new(session);
 
         services
             .list(request)
