@@ -34,7 +34,7 @@ pub(crate) struct CustomerServiceImpl {
 }
 
 impl CustomerServiceImpl {
-    pub fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
         let repo = CustomerRepoImpl::new(session.clone());
         Self {
             session,
@@ -108,5 +108,57 @@ impl CustomerService for CustomerServiceImpl {
         }
 
         return Ok(old_customer);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::customer::repos::fake_repo::FakeCustomerRepo;
+    use common::config::postgres_config::PostgresConfig;
+    use common::util::connections::create_database_connection;
+
+    impl CustomerServiceImpl {
+        fn fake(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+            let repo = FakeCustomerRepo::new();
+            Self {
+                session,
+                repo: Box::new(repo),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn can_create_customer() {
+        let env_file = concat!(env!("CARGO_MANIFEST_DIR"), "/", "env", "/", "dev.env");
+        let _ = dotenv::from_path(env_file);
+
+        let database_config = PostgresConfig::new();
+
+        let database_connection = create_database_connection(database_config)
+            .await
+            .expect("Can't connect to database.");
+
+        let session = database_connection.acquire().await.unwrap();
+
+        let fake_service = CustomerServiceImpl::fake(Arc::new(Mutex::new(session)));
+
+        let req = CreateCustomerRequest {
+            name: "boris".to_string(),
+            email: None,
+            phone: None,
+        };
+
+        let res = fake_service.create(req).await;
+
+        assert!(res.is_ok());
+
+        let id = res.unwrap().id;
+
+        let customer = fake_service.repo.get(id).await;
+
+        assert!(customer.is_ok());
+        let customer = customer.unwrap();
+        assert!(customer.is_some());
     }
 }
