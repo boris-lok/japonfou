@@ -1,8 +1,13 @@
+use crate::util::errors::AppError;
+use anyhow::Result;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use futures::lock::Mutex;
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
+use std::ops::DerefMut;
+use std::sync::Arc;
 use tonic::Status;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
-
-use crate::util::errors::AppError;
 
 /// Init tracing - show logs in console to create daily log files.
 ///
@@ -63,4 +68,54 @@ pub fn database_error_handler(err: anyhow::Error) -> AppError {
     let msg = err.to_string();
     tracing::error!(message = msg.as_str());
     AppError::DatabaseError(msg)
+}
+
+/// begin a transaction
+///
+/// param:
+/// - session: database connection session.
+///
+/// return:
+/// - bool
+pub async fn begin_transaction(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Result<bool> {
+    execute(session, "BEGIN;").await
+}
+
+/// commit a transaction
+///
+/// param:
+/// - session: database connection session.
+///
+/// return:
+/// - bool
+pub async fn commit_transaction(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Result<bool> {
+    execute(session, "COMMIT;").await
+}
+
+/// rollback a transaction
+///
+/// param:
+/// - session: database connection session.
+///
+/// return:
+/// - bool
+pub async fn rollback_transaction(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Result<bool> {
+    execute(session, "ROLLBACK;").await
+}
+
+/// execute a sql in database.
+///
+/// params:
+/// - session: database connection session.
+/// - sql
+///
+/// return:
+/// - bool
+async fn execute(session: Arc<Mutex<PoolConnection<Postgres>>>, sql: &str) -> Result<bool> {
+    let mut conn = session.lock().await;
+
+    Ok(sqlx::query(sql)
+        .execute(conn.deref_mut())
+        .await
+        .map(|row| row.rows_affected() > 0)?)
 }

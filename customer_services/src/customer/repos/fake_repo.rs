@@ -94,6 +94,27 @@ impl CustomerRepo for FakeCustomerRepo {
         session.insert(id, c);
         return Ok(true);
     }
+
+    async fn check_customer_is_exist(
+        &self,
+        phone: Option<String>,
+        email: Option<String>,
+    ) -> anyhow::Result<bool> {
+        let session = self.session.lock().await;
+        Ok(session
+            .values()
+            .filter(|&e| match (phone.clone(), email.clone()) {
+                (Some(phone), Some(email)) => {
+                    e.phone.clone().map_or(false, |e| e.eq(&phone))
+                        && e.email.clone().map_or(false, |e| e.eq(&email))
+                }
+                (Some(phone), None) => e.phone.clone().map_or(false, |e| e.eq(&phone)),
+                (None, Some(email)) => e.email.clone().map_or(false, |e| e.eq(&email)),
+                _ => false,
+            })
+            .count()
+            >= 1)
+    }
 }
 
 #[cfg(test)]
@@ -153,6 +174,18 @@ mod test {
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn check_customer_is_exist() {
+        let repo = FakeCustomerRepo::new();
+        let email = Some("boris.lok@gmail.com".to_string());
+        let phone = Some("123".to_string());
+        let _ =
+            create_fake_customer(&repo, "boris".to_string(), email.clone(), phone.clone()).await;
+
+        let res = repo.check_customer_is_exist(phone, email).await;
+        assert!(res.unwrap());
     }
 
     async fn create_fake_customer(

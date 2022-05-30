@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures::lock::Mutex;
 use futures::FutureExt;
+use futures::lock::Mutex;
 use sea_query::{Cond, Query};
 use sea_query::{Expr, PostgresQueryBuilder};
+use sqlx::{Postgres, Row};
 use sqlx::pool::PoolConnection;
-use sqlx::Postgres;
 
 use common::customer_pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::json::customer::{Customer, Customers};
@@ -141,5 +141,29 @@ impl CustomerRepo for CustomerRepoImpl {
             .execute(conn.deref_mut())
             .await
             .map(|e| e.rows_affected() > 0)?);
+    }
+
+    async fn check_customer_is_exist(
+        &self,
+        phone: Option<String>,
+        email: Option<String>,
+    ) -> Result<bool> {
+        let mut conn = self.session.lock().await;
+
+        if phone.is_none() && email.is_none() {
+            return Ok(false);
+        }
+
+        let sql = Query::select()
+            .columns(vec![Customers::Id])
+            .from(Customers::Table)
+            .and_where_option(phone.map(|phone| Expr::col(Customers::Phone).eq(phone)))
+            .and_where_option(email.map(|email| Expr::col(Customers::Email).eq(email)))
+            .to_string(PostgresQueryBuilder);
+
+        Ok(sqlx::query(&sql)
+            .fetch_one(conn.deref_mut())
+            .await
+            .map(|row| row.len() > 1)?)
     }
 }

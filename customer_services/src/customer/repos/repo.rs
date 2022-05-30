@@ -11,4 +11,9 @@ pub(crate) trait CustomerRepo {
     async fn create(&self, req: CreateCustomerRequest) -> Result<Customer>;
     async fn list(&self, req: ListRequest) -> Result<Vec<Customer>>;
     async fn update(&self, req: UpdateCustomerRequest) -> Result<bool>;
+    async fn check_customer_is_exist(
+        &self,
+        phone: Option<String>,
+        email: Option<String>,
+    ) -> Result<bool>;
 }
