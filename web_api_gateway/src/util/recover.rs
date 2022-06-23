@@ -17,19 +17,19 @@ struct ErrorResponse {
     message: String,
 }
 
-impl From<(u16, &str)> for ErrorResponse {
-    fn from(t: (u16, &str)) -> Self {
+impl From<(u16, String)> for ErrorResponse {
+    fn from(t: (u16, String)) -> Self {
         Self {
             code: t.0,
-            message: t.1.to_string(),
+            message: t.1,
         }
     }
 }
 
 pub fn custom_error_handler(status: Status) -> warp::reject::Rejection {
-    let msg = status.to_string();
-    tracing::error!(message = msg.as_str());
-    warp::reject::custom(ServerError::Reason(msg))
+    let msg = status.message();
+    tracing::error!(message = msg);
+    warp::reject::custom(ServerError::Reason(msg.to_string()))
 }
 
 pub async fn rejection_handler(err: warp::Rejection) -> Result<impl Reply, Infallible> {
@@ -40,13 +40,13 @@ pub async fn rejection_handler(err: warp::Rejection) -> Result<impl Reply, Infal
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
-        message = "not found.";
+        message = "not found.".to_string();
     } else if let Some(AppError::DatabaseError(s)) = err.find() {
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = s;
+        message = s.to_string();
     } else if let Some(e) = err.find::<warp::filters::body::BodyDeserializeError>() {
         code = StatusCode::BAD_REQUEST;
-        message = match e.source() {
+        message = (match e.source() {
             Some(cause) => {
                 if cause.to_string().contains("denom") {
                     "field_error: denom"
@@ -55,10 +55,17 @@ pub async fn rejection_handler(err: warp::Rejection) -> Result<impl Reply, Infal
                 }
             }
             _ => "bad request.",
-        }
+        })
+        .to_string()
+    } else if let Some(ServerError::Reason(s)) = err.find() {
+        code = StatusCode::BAD_REQUEST;
+        message = s.to_string();
+    } else if let Some(ServerError::Other(e)) = err.find() {
+        code = StatusCode::BAD_REQUEST;
+        message = e.to_string();
     } else {
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "unhandled rejection.";
+        message = "unhandled rejection.".to_string();
     }
 
     let response: ErrorResponse = (code.as_u16(), message).into();
