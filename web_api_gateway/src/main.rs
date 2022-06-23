@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
 
     let cors = warp::cors()
         .allow_any_origin()
-        .allow_headers(vec!["Access-Control-Allow-Origin", "Content-Type"])
+        .allow_headers(vec!["Content-Type"])
         .allow_credentials(true)
         .expose_headers(vec!["set-cookie"])
         .allow_methods(vec!["GET", "POST", "DELETE", "PUT", "PATCH"]);
@@ -72,12 +72,13 @@ async fn main() -> Result<()> {
     let product_routes = product::routes::routes(env.clone());
     let order_routes = order::routes::routes(env.clone());
 
+    // CORS added at the end. Otherwise, it will cause missing cors problem.
     let routes = customer_routes
         .or(product_routes)
         .or(order_routes)
-        .with(cors)
         .with(warp::trace::request())
-        .recover(rejection_handler);
+        .recover(rejection_handler)
+        .with(cors);
 
     let addr = dotenv::var("WEB_API_GATEWAY_HOST_ADDRESS")
         .unwrap_or_else(|_| "127.0.0.1:10002".to_string())
