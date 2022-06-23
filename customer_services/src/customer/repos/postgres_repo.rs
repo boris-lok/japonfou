@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures::FutureExt;
 use futures::lock::Mutex;
+use futures::FutureExt;
 use sea_query::{Cond, Query};
 use sea_query::{Expr, PostgresQueryBuilder};
-use sqlx::{Postgres, Row};
 use sqlx::pool::PoolConnection;
+use sqlx::{Postgres, Row};
 
 use common::customer_pb::{CreateCustomerRequest, UpdateCustomerRequest};
 use common::json::customer::{Customer, Customers};
@@ -162,8 +162,8 @@ impl CustomerRepo for CustomerRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query(&sql)
-            .fetch_one(conn.deref_mut())
+            .fetch_optional(conn.deref_mut())
             .await
-            .map(|row| row.len() > 1)?)
+            .map(|row| row.map_or_else(|| false, |e| e.len() > 0))?)
     }
 }

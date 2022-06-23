@@ -57,7 +57,7 @@ impl CustomerService for CustomerServiceImpl {
 
         if is_exist.is_err() {
             return Err(AppError::DatabaseError(
-                "Can't check the customer is exist or not.".to_string(),
+                is_exist.err().unwrap().to_string(),
             ));
         }
 
@@ -113,10 +113,12 @@ impl CustomerService for CustomerServiceImpl {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::customer::repos::fake_repo::FakeCustomerRepo;
     use common::config::postgres_config::PostgresConfig;
     use common::util::connections::create_database_connection;
+
+    use crate::customer::repos::fake_repo::FakeCustomerRepo;
+
+    use super::*;
 
     impl CustomerServiceImpl {
         fn fake(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
