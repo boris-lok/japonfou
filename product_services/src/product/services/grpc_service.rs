@@ -1,5 +1,10 @@
+use std::sync::Arc;
+
+use anyhow::Result;
 use async_trait::async_trait;
+use futures::lock::Mutex;
 use sqlx::{Pool, Postgres};
+use sqlx::pool::PoolConnection;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -14,12 +19,18 @@ use crate::product::services::service::{ProductService, ProductServiceImpl};
 
 #[derive(Debug)]
 pub struct ProductServicesImpl {
-    session: Pool<Postgres>,
+    pool: Pool<Postgres>,
 }
 
 impl ProductServicesImpl {
-    pub fn new(session: Pool<Postgres>) -> Self {
-        Self { session }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        Self { pool }
+    }
+
+    async fn get_session(&self) -> Result<Arc<Mutex<PoolConnection<Postgres>>>> {
+        let conn = self.pool.acquire().await?;
+
+        Ok(Arc::new(Mutex::new(conn)))
     }
 }
 
@@ -31,8 +42,9 @@ impl ProductServices for ProductServicesImpl {
         request: Request<CreateProductRequest>,
     ) -> Result<Response<Product>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = ProductServiceImpl::new(self.session.clone());
+        let services = ProductServiceImpl::new(session);
 
         services
             .create(request)
@@ -49,8 +61,9 @@ impl ProductServices for ProductServicesImpl {
         request: Request<UpdateProductRequest>,
     ) -> Result<Response<Product>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = ProductServiceImpl::new(self.session.clone());
+        let services = ProductServiceImpl::new(session);
 
         services
             .update(request)
@@ -67,8 +80,9 @@ impl ProductServices for ProductServicesImpl {
         request: Request<GetByIdRequest>,
     ) -> Result<Response<GetProductResponse>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = ProductServiceImpl::new(self.session.clone());
+        let services = ProductServiceImpl::new(session);
 
         services
             .get(request.id as i64)
@@ -85,8 +99,9 @@ impl ProductServices for ProductServicesImpl {
         request: Request<ListRequest>,
     ) -> Result<Response<ListProductResponse>, Status> {
         let request = request.into_inner();
+        let session = self.get_session().await.unwrap();
 
-        let services = ProductServiceImpl::new(self.session.clone());
+        let services = ProductServiceImpl::new(session);
 
         services
             .list(request)

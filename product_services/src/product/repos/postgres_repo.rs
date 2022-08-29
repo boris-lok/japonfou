@@ -1,25 +1,33 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use futures::lock::Mutex;
 use sea_query::{Expr, PostgresQueryBuilder, Query};
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
+use std::ops::DerefMut;
+use std::sync::Arc;
 
 use common::json::product::{Product, Products};
 use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
-use common::util::alias::PostgresAcquire;
 
 use crate::product::repos::repo::ProductRepo;
 use crate::ID_GENERATOR;
 
-pub struct ProductRepoImpl;
+pub struct ProductRepoImpl {
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+}
+
+impl ProductRepoImpl {
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        Self { session }
+    }
+}
 
 #[async_trait]
 impl ProductRepo for ProductRepoImpl {
-    async fn get(
-        &self,
-        id: i64,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> Result<Option<Product>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn get(&self, id: i64) -> Result<Option<Product>> {
+        let mut conn = self.session.lock().await;
 
         let sql = Query::select()
             .columns([
@@ -36,18 +44,14 @@ impl ProductRepo for ProductRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Product>(sql.as_str())
-            .fetch_optional(&mut *conn)
+            .fetch_optional(conn.deref_mut())
             .await?)
     }
 
-    async fn create(
-        &self,
-        request: CreateProductRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> Result<Product> {
+    async fn create(&self, request: CreateProductRequest) -> Result<Product> {
         let id = async move { ID_GENERATOR.lock().unwrap().next_id() as u64 }.await;
 
-        let mut conn = executor.acquire().await.unwrap();
+        let mut conn = self.session.lock().await;
 
         let name = request.name.clone().into();
         let currency = request.currency.into();
@@ -72,16 +76,12 @@ impl ProductRepo for ProductRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Product>(&sql)
-            .fetch_one(&mut *conn)
+            .fetch_one(conn.deref_mut())
             .await?)
     }
 
-    async fn update(
-        &self,
-        request: UpdateProductRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> Result<bool> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn update(&self, request: UpdateProductRequest) -> Result<bool> {
+        let mut conn = self.session.lock().await;
 
         let mut update_values = vec![];
         if let Some(name) = request.name {
@@ -96,6 +96,10 @@ impl ProductRepo for ProductRepoImpl {
             update_values.push((Products::Price, price.into()));
         }
 
+        if update_values.is_empty() {
+            return Ok(false);
+        }
+
         let sql = Query::update()
             .table(Products::Table)
             .values(update_values)
@@ -103,17 +107,13 @@ impl ProductRepo for ProductRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query(&sql)
-            .execute(&mut *conn)
+            .execute(conn.deref_mut())
             .await
             .map(|e| e.rows_affected() > 0)?)
     }
 
-    async fn list(
-        &self,
-        request: ListRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> Result<Vec<Product>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn list(&self, request: ListRequest) -> Result<Vec<Product>> {
+        let mut conn = self.session.lock().await;
 
         let query = request.query.map(|q| format!("%{}%", q));
         let page_size = request.page_size;
@@ -135,7 +135,7 @@ impl ProductRepo for ProductRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Product>(&sql)
-            .fetch_all(&mut *conn)
+            .fetch_all(conn.deref_mut())
             .await?)
     }
 }

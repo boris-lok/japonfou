@@ -131,6 +131,10 @@ impl CustomerRepo for CustomerRepoImpl {
             update_values.push((Customers::Phone, phone.into()));
         }
 
+        if update_values.is_empty() {
+            return Ok(false);
+        }
+
         let sql = Query::update()
             .table(Customers::Table)
             .values(update_values)

@@ -21,7 +21,7 @@ impl From<CreateOrderItemRequest> for common::order_item_pb::CreateOrderItemRequ
     }
 }
 
-#[derive(Debug, Deserialize_repr, PartialEq)]
+#[derive(Debug, Deserialize_repr, PartialEq, Eq)]
 #[repr(u8)]
 pub enum OrderItemStatus {
     Picked = 0,

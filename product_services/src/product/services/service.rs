@@ -1,13 +1,17 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use futures::lock::Mutex;
 use rust_decimal::Decimal;
-use sqlx::{Pool, Postgres};
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
 
 use common::json::product::Product;
 use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
-use common::util::tools::database_error_handler;
+use common::util::tools::{begin_transaction, commit_transaction, database_error_handler};
 
 use crate::product::repos::postgres_repo::ProductRepoImpl;
 use crate::product::repos::repo::ProductRepo;
@@ -24,51 +28,38 @@ pub trait ProductService {
 }
 
 pub struct ProductServiceImpl {
-    pool: Pool<Postgres>,
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+    repo: Box<dyn ProductRepo + Send + Sync>,
 }
 
 impl ProductServiceImpl {
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self { pool }
+    pub fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        let repo = Box::new(ProductRepoImpl::new(session.clone()));
+        Self { session, repo }
     }
 }
 
 #[async_trait]
 impl ProductService for ProductServiceImpl {
     async fn get(&self, id: i64) -> AppResult<Option<Product>> {
-        let repo = ProductRepoImpl;
+        self.repo.get(id).await.map_err(database_error_handler)
+    }
 
-        repo.get(id, &self.pool.clone())
+    async fn create(&self, request: CreateProductRequest) -> AppResult<Product> {
+        self.repo
+            .create(request)
             .await
             .map_err(database_error_handler)
     }
 
-    async fn create(&self, request: CreateProductRequest) -> AppResult<Product> {
-        let repo = ProductRepoImpl;
-
-        let mut tx = self.pool.begin().await.unwrap();
-
-        let product = repo
-            .create(request, &mut *tx)
-            .await
-            .map_err(database_error_handler);
-
-        let _ = tx.commit().await.unwrap();
-
-        product
-    }
-
     async fn update(&self, request: UpdateProductRequest) -> AppResult<Product> {
-        let repo = ProductRepoImpl;
-
-        let mut tx = self.pool.begin().await.unwrap();
-
-        let old_product = repo.get(request.id as i64, &mut *tx).await.ok().flatten();
+        let _ = begin_transaction(self.session.clone()).await;
+        let old_product = self.repo.get(request.id as i64).await.ok().flatten();
 
         if let Some(p) = old_product {
-            let is_affected = repo.update(request.clone(), &mut *tx).await;
+            let is_affected = self.repo.update(request.clone()).await;
 
-            let _ = tx.commit().await.unwrap();
+            let _ = commit_transaction(self.session.clone()).await;
 
             if is_affected.is_ok() {
                 let currency = request.currency.map(|c| c as i16).unwrap_or(p.currency);
@@ -87,8 +78,6 @@ impl ProductService for ProductServiceImpl {
             }
 
             return Ok(p);
-        } else {
-            let _ = tx.rollback().await.unwrap();
         }
 
         Err(AppError::DatabaseError(
@@ -97,9 +86,8 @@ impl ProductService for ProductServiceImpl {
     }
 
     async fn list(&self, request: ListRequest) -> AppResult<Vec<Product>> {
-        let repo = ProductRepoImpl;
-
-        repo.list(request, &self.pool.clone())
+        self.repo
+            .list(request)
             .await
             .map_err(database_error_handler)
     }
