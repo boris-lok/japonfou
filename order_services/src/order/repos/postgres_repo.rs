@@ -1,6 +1,11 @@
 use async_trait::async_trait;
+use futures::lock::Mutex;
 use futures::FutureExt;
 use sea_query::{Cond, Expr, JoinType, PostgresQueryBuilder, Query};
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
+use std::ops::DerefMut;
+use std::sync::Arc;
 
 use common::json::customer::{Customer, Customers};
 use common::json::order_item::{OrderItem, OrderItems};
@@ -9,23 +14,44 @@ use common::order_item_pb::{
     CreateOrderItemRequest, UpdateOrderItemRequest, UpdateOrderItemsStatusRequest,
 };
 use common::types::ListRequest;
-use common::util::alias::PostgresAcquire;
 
 use crate::order::repos::repo::{CustomerRepo, OrderItemRepo, ProductRepo};
 use crate::ID_GENERATOR;
 
-pub struct OrderItemRepoImpl;
-pub struct ProductRepoImpl;
-pub struct CustomerRepoImpl;
+pub(crate) struct OrderItemRepoImpl {
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+}
+
+impl OrderItemRepoImpl {
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        Self { session }
+    }
+}
+
+pub(crate) struct ProductRepoImpl {
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+}
+
+impl ProductRepoImpl {
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        Self { session }
+    }
+}
+
+pub(crate) struct CustomerRepoImpl {
+    session: Arc<Mutex<PoolConnection<Postgres>>>,
+}
+
+impl CustomerRepoImpl {
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        Self { session }
+    }
+}
 
 #[async_trait]
 impl OrderItemRepo for OrderItemRepoImpl {
-    async fn get(
-        &self,
-        id: u64,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<Option<OrderItem>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn get(&self, id: u64) -> anyhow::Result<Option<OrderItem>> {
+        let mut conn = self.session.lock().await;
 
         let order_item_cols = vec![
             (OrderItems::Table, OrderItems::Id),
@@ -69,16 +95,12 @@ impl OrderItemRepo for OrderItemRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, OrderItem>(&sql)
-            .fetch_optional(&mut *conn)
+            .fetch_optional(conn.deref_mut())
             .await?)
     }
 
-    async fn create(
-        &self,
-        req: CreateOrderItemRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<u64> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn create(&self, req: CreateOrderItemRequest) -> anyhow::Result<u64> {
+        let mut conn = self.session.lock().await;
 
         let id = async move { ID_GENERATOR.clone().lock().unwrap().next_id() }
             .boxed()
@@ -104,17 +126,13 @@ impl OrderItemRepo for OrderItemRepoImpl {
             ])
             .to_string(PostgresQueryBuilder);
 
-        let _ = sqlx::query(&sql).execute(&mut *conn).await?;
+        let _ = sqlx::query(&sql).execute(conn.deref_mut()).await?;
 
         Ok(id)
     }
 
-    async fn list(
-        &self,
-        req: ListRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<Vec<OrderItem>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn list(&self, req: ListRequest) -> anyhow::Result<Vec<OrderItem>> {
+        let mut conn = self.session.lock().await;
 
         let order_item_cols = vec![
             (OrderItems::Table, OrderItems::Id),
@@ -177,16 +195,12 @@ impl OrderItemRepo for OrderItemRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, OrderItem>(&sql)
-            .fetch_all(&mut *conn)
+            .fetch_all(conn.deref_mut())
             .await?)
     }
 
-    async fn update(
-        &self,
-        req: UpdateOrderItemRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<bool> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn update(&self, req: UpdateOrderItemRequest) -> anyhow::Result<bool> {
+        let mut conn = self.session.lock().await;
 
         let mut update_values = vec![];
 
@@ -206,6 +220,10 @@ impl OrderItemRepo for OrderItemRepoImpl {
             update_values.push((OrderItems::Status, status.into()));
         }
 
+        if update_values.is_empty() {
+            return Ok(false);
+        }
+
         let sql = Query::update()
             .table(OrderItems::Table)
             .values(update_values)
@@ -213,7 +231,7 @@ impl OrderItemRepo for OrderItemRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query(&sql)
-            .execute(&mut *conn)
+            .execute(conn.deref_mut())
             .await
             .map(|e| e.rows_affected() > 0)?)
     }
@@ -221,9 +239,8 @@ impl OrderItemRepo for OrderItemRepoImpl {
     async fn update_items_status(
         &self,
         req: UpdateOrderItemsStatusRequest,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
     ) -> anyhow::Result<bool> {
-        let mut conn = executor.acquire().await.unwrap();
+        let mut conn = self.session.lock().await;
 
         let sql = Query::update()
             .table(OrderItems::Table)
@@ -232,7 +249,7 @@ impl OrderItemRepo for OrderItemRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query(&sql)
-            .execute(&mut *conn)
+            .execute(conn.deref_mut())
             .await
             .map(|e| e.rows_affected() > 0)?)
     }
@@ -240,12 +257,8 @@ impl OrderItemRepo for OrderItemRepoImpl {
 
 #[async_trait]
 impl ProductRepo for ProductRepoImpl {
-    async fn get(
-        &self,
-        id: u64,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<Option<Product>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn get(&self, id: u64) -> anyhow::Result<Option<Product>> {
+        let mut conn = self.session.lock().await;
 
         let sql = Query::select()
             .columns([
@@ -262,19 +275,15 @@ impl ProductRepo for ProductRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Product>(sql.as_str())
-            .fetch_optional(&mut *conn)
+            .fetch_optional(conn.deref_mut())
             .await?)
     }
 }
 
 #[async_trait]
 impl CustomerRepo for CustomerRepoImpl {
-    async fn get(
-        &self,
-        id: u64,
-        executor: impl PostgresAcquire<'_> + 'async_trait,
-    ) -> anyhow::Result<Option<Customer>> {
-        let mut conn = executor.acquire().await.unwrap();
+    async fn get(&self, id: u64) -> anyhow::Result<Option<Customer>> {
+        let mut conn = self.session.lock().await;
 
         let sql = Query::select()
             .columns(vec![
@@ -290,7 +299,7 @@ impl CustomerRepo for CustomerRepoImpl {
             .to_string(PostgresQueryBuilder);
 
         Ok(sqlx::query_as::<_, Customer>(&sql)
-            .fetch_optional(&mut *conn)
+            .fetch_optional(conn.deref_mut())
             .await?)
     }
 }

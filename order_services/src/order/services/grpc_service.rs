@@ -1,7 +1,11 @@
 use async_trait::async_trait;
+use futures::lock::Mutex;
+use sqlx::pool::PoolConnection;
 use sqlx::{Pool, Postgres};
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
+use anyhow::Result;
 use common::order_item_pb::order_services_server::OrderServices;
 use common::order_item_pb::{
     CreateOrderItemRequest, GetOrderItemResponse, ListOrderItemResponse, OrderItem,
@@ -13,12 +17,18 @@ use common::util::tools::grpc_error_handler;
 use crate::order::services::service::{OrderItemService, OrderItemServiceImpl};
 
 pub struct GrpcOrderServiceImpl {
-    session: Pool<Postgres>,
+    pool: Pool<Postgres>,
 }
 
 impl GrpcOrderServiceImpl {
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self { session: pool }
+    pub(crate) fn new(pool: Pool<Postgres>) -> Self {
+        Self { pool }
+    }
+
+    async fn get_session(&self) -> Result<Arc<Mutex<PoolConnection<Postgres>>>> {
+        let conn = self.pool.acquire().await?;
+
+        Ok(Arc::new(Mutex::new(conn)))
     }
 }
 
@@ -29,8 +39,9 @@ impl OrderServices for GrpcOrderServiceImpl {
         request: Request<GetByIdRequest>,
     ) -> Result<Response<GetOrderItemResponse>, Status> {
         let id = request.into_inner().id;
+        let session = self.get_session().await.unwrap();
 
-        let services = OrderItemServiceImpl::new(self.session.clone());
+        let services = OrderItemServiceImpl::new(session);
         services
             .get(id)
             .await
@@ -44,8 +55,9 @@ impl OrderServices for GrpcOrderServiceImpl {
         request: Request<ListRequest>,
     ) -> Result<Response<ListOrderItemResponse>, Status> {
         let req = request.into_inner();
-        let services = OrderItemServiceImpl::new(self.session.clone());
+        let session = self.get_session().await.unwrap();
 
+        let services = OrderItemServiceImpl::new(session);
         services
             .list(req)
             .await
@@ -62,8 +74,9 @@ impl OrderServices for GrpcOrderServiceImpl {
         request: Request<UpdateOrderItemRequest>,
     ) -> Result<Response<OrderItem>, Status> {
         let req = request.into_inner();
-        let services = OrderItemServiceImpl::new(self.session.clone());
+        let session = self.get_session().await.unwrap();
 
+        let services = OrderItemServiceImpl::new(session);
         services
             .update(req)
             .await
@@ -75,8 +88,9 @@ impl OrderServices for GrpcOrderServiceImpl {
         &self,
         request: Request<CreateOrderItemRequest>,
     ) -> Result<Response<OrderItem>, Status> {
-        let services = OrderItemServiceImpl::new(self.session.clone());
+        let session = self.get_session().await.unwrap();
 
+        let services = OrderItemServiceImpl::new(session);
         services
             .create(request.into_inner())
             .await
@@ -88,8 +102,9 @@ impl OrderServices for GrpcOrderServiceImpl {
         &self,
         request: Request<UpdateOrderItemsStatusRequest>,
     ) -> Result<Response<UpdateOrderItemsStatusResponse>, Status> {
-        let services = OrderItemServiceImpl::new(self.session.clone());
+        let session = self.get_session().await.unwrap();
 
+        let services = OrderItemServiceImpl::new(session);
         services
             .update_items_status(request.into_inner())
             .await

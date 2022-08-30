@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use sqlx::{Pool, Postgres};
+use futures::lock::Mutex;
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
+use std::sync::Arc;
 
 use common::json::order_item::OrderItem;
 use common::order_item_pb::{
@@ -27,33 +30,38 @@ pub trait OrderItemService {
 }
 
 pub struct OrderItemServiceImpl {
-    pool: Pool<Postgres>,
+    // session: Arc<Mutex<PoolConnection<Postgres>>>,
+    order_repo: Box<dyn OrderItemRepo + Send + Sync>,
+    product_repo: Box<dyn ProductRepo + Send + Sync>,
+    customer_repo: Box<dyn CustomerRepo + Send + Sync>,
 }
 
 impl OrderItemServiceImpl {
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self { pool }
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        let order_repo = Box::new(OrderItemRepoImpl::new(session.clone()));
+        let product_repo = Box::new(ProductRepoImpl::new(session.clone()));
+        let customer_repo = Box::new(CustomerRepoImpl::new(session.clone()));
+
+        Self {
+            // session,
+            order_repo,
+            product_repo,
+            customer_repo,
+        }
     }
 }
 
 #[async_trait]
 impl OrderItemService for OrderItemServiceImpl {
     async fn get(&self, id: u64) -> AppResult<Option<OrderItem>> {
-        let repo = OrderItemRepoImpl;
-
-        repo.get(id, &self.pool.clone())
+        self.order_repo
+            .get(id)
             .await
             .map_err(database_error_handler)
     }
 
     async fn create(self, req: CreateOrderItemRequest) -> AppResult<OrderItem> {
-        let order_item_repo = OrderItemRepoImpl;
-        let product_repo = ProductRepoImpl;
-        let customer_repo = CustomerRepoImpl;
-
-        let mut tx = self.pool.begin().await.unwrap();
-
-        let product = product_repo.get(req.product_id, &mut *tx).await;
+        let product = self.product_repo.get(req.product_id).await;
 
         if product.is_err() {
             return Err(AppError::DatabaseError(product.err().unwrap().to_string()));
@@ -67,7 +75,7 @@ impl OrderItemService for OrderItemServiceImpl {
             return Err(AppError::BadRequest(msg));
         }
 
-        let customer = customer_repo.get(req.customer_id, &mut *tx).await;
+        let customer = self.customer_repo.get(req.customer_id).await;
 
         if customer.is_err() {
             return Err(AppError::DatabaseError(customer.err().unwrap().to_string()));
@@ -81,47 +89,37 @@ impl OrderItemService for OrderItemServiceImpl {
             return Err(AppError::BadRequest(msg));
         }
 
-        let result = order_item_repo
-            .create(req, &mut *tx)
+        let result = self
+            .order_repo
+            .create(req)
             .await
             .map_err(|e| AppError::DatabaseError(e.to_string()));
 
         if let Ok(new_id) = result {
-            let item = order_item_repo
-                .get(new_id, &mut *tx)
+            let item = self
+                .order_repo
+                .get(new_id)
                 .await
                 .map(|o| o.unwrap())
                 .map_err(database_error_handler);
 
-            tx.commit().await.unwrap();
-
             return item;
-        } else {
-            tx.rollback().await.unwrap();
         }
 
         Err(AppError::DatabaseError(result.err().unwrap().to_string()))
     }
 
     async fn list(self, req: ListRequest) -> AppResult<Vec<OrderItem>> {
-        let repo = OrderItemRepoImpl;
-
-        repo.list(req, &self.pool.clone())
+        self.order_repo
+            .list(req)
             .await
             .map_err(database_error_handler)
     }
 
     async fn update(self, req: UpdateOrderItemRequest) -> AppResult<OrderItem> {
-        let order_item_repo = OrderItemRepoImpl;
-        let customer_repo = CustomerRepoImpl;
-        let product_repo = ProductRepoImpl;
-
-        let mut tx = self.pool.begin().await.unwrap();
-
-        let old_order_item = order_item_repo.get(req.id, &mut *tx).await.ok().flatten();
+        let old_order_item = self.order_repo.get(req.id).await.ok().flatten();
 
         if old_order_item.is_none() {
-            tx.rollback().await.unwrap();
             return Err(AppError::BadRequest(format!(
                 "Can't find the order item by id: {}",
                 req.id
@@ -129,14 +127,9 @@ impl OrderItemService for OrderItemServiceImpl {
         }
 
         if let Some(customer_id) = req.customer_id {
-            let customer = customer_repo
-                .get(customer_id, &mut *tx)
-                .await
-                .ok()
-                .flatten();
+            let customer = self.customer_repo.get(customer_id).await.ok().flatten();
 
             if customer.is_none() {
-                tx.rollback().await.unwrap();
                 return Err(AppError::BadRequest(format!(
                     "Can't update the order item by id: {}, because customer {} is not exist.",
                     req.id, customer_id
@@ -145,10 +138,9 @@ impl OrderItemService for OrderItemServiceImpl {
         }
 
         if let Some(product_id) = req.product_id {
-            let product = product_repo.get(product_id, &mut *tx).await.ok().flatten();
+            let product = self.product_repo.get(product_id).await.ok().flatten();
 
             if product.is_none() {
-                tx.rollback().await.unwrap();
                 return Err(AppError::BadRequest(format!(
                     "Can't update the order item by id: {}, because product {} is not exist.",
                     req.id, product_id
@@ -157,13 +149,12 @@ impl OrderItemService for OrderItemServiceImpl {
         }
 
         let id = req.id;
-        let is_affected = order_item_repo.update(req, &mut *tx).await;
-
-        tx.commit().await.unwrap();
+        let is_affected = self.order_repo.update(req).await;
 
         if is_affected.is_ok() {
-            let new_order_item = order_item_repo
-                .get(id, &self.pool.clone())
+            let new_order_item = self
+                .order_repo
+                .get(id)
                 .await
                 .map(|o| o.unwrap())
                 .map_err(database_error_handler);
@@ -177,9 +168,8 @@ impl OrderItemService for OrderItemServiceImpl {
     }
 
     async fn update_items_status(self, req: UpdateOrderItemsStatusRequest) -> AppResult<bool> {
-        let repo = OrderItemRepoImpl;
-
-        repo.update_items_status(req, &self.pool.clone())
+        self.order_repo
+            .update_items_status(req)
             .await
             .map_err(database_error_handler)
     }
