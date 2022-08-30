@@ -29,15 +29,13 @@ pub(crate) trait CustomerService {
 }
 
 pub(crate) struct CustomerServiceImpl {
-    session: Arc<Mutex<PoolConnection<Postgres>>>,
     repo: Box<dyn CustomerRepo + Sync + Send>,
 }
 
 impl CustomerServiceImpl {
     pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
-        let repo = CustomerRepoImpl::new(session.clone());
+        let repo = CustomerRepoImpl::new(session);
         Self {
-            session,
             repo: Box::new(repo),
         }
     }
@@ -56,9 +54,7 @@ impl CustomerService for CustomerServiceImpl {
             .await;
 
         if is_exist.is_err() {
-            return Err(AppError::DatabaseError(
-                is_exist.err().unwrap().to_string(),
-            ));
+            return Err(AppError::DatabaseError(is_exist.err().unwrap().to_string()));
         }
 
         if is_exist.is_ok() && is_exist.unwrap() {
@@ -79,11 +75,9 @@ impl CustomerService for CustomerServiceImpl {
     }
 
     async fn update(&self, request: UpdateCustomerRequest) -> AppResult<Customer> {
-        let _ = begin_transaction(self.session.clone()).await;
         let old_customer = self.repo.get(request.id as i64).await.ok().flatten();
 
         if old_customer.is_none() {
-            let _ = rollback_transaction(self.session.clone()).await;
             return Err(AppError::BadRequest(format!(
                 "Can't find the customer by id {}",
                 request.id
@@ -93,8 +87,6 @@ impl CustomerService for CustomerServiceImpl {
         let old_customer = old_customer.unwrap();
 
         let is_affected = self.repo.update(request.clone()).await;
-
-        let _ = commit_transaction(self.session.clone()).await;
 
         if is_affected.is_ok() {
             let new_customer = Customer {
@@ -113,18 +105,14 @@ impl CustomerService for CustomerServiceImpl {
 
 #[cfg(test)]
 mod test {
-    use common::config::postgres_config::PostgresConfig;
-    use common::util::connections::create_database_connection;
-
     use crate::customer::repos::fake_repo::FakeCustomerRepo;
 
     use super::*;
 
     impl CustomerServiceImpl {
-        fn fake(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        fn fake() -> Self {
             let repo = FakeCustomerRepo::new();
             Self {
-                session,
                 repo: Box::new(repo),
             }
         }
@@ -132,18 +120,7 @@ mod test {
 
     #[tokio::test]
     async fn can_create_customer() {
-        let env_file = concat!(env!("CARGO_MANIFEST_DIR"), "/", "env", "/", "dev.env");
-        let _ = dotenv::from_path(env_file);
-
-        let database_config = PostgresConfig::new();
-
-        let database_connection = create_database_connection(database_config)
-            .await
-            .expect("Can't connect to database.");
-
-        let session = database_connection.acquire().await.unwrap();
-
-        let fake_service = CustomerServiceImpl::fake(Arc::new(Mutex::new(session)));
+        let fake_service = CustomerServiceImpl::fake();
 
         let req = CreateCustomerRequest {
             name: "boris".to_string(),

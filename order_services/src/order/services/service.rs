@@ -29,8 +29,7 @@ pub trait OrderItemService {
     async fn update_items_status(self, req: UpdateOrderItemsStatusRequest) -> AppResult<bool>;
 }
 
-pub struct OrderItemServiceImpl {
-    // session: Arc<Mutex<PoolConnection<Postgres>>>,
+pub(crate) struct OrderItemServiceImpl {
     order_repo: Box<dyn OrderItemRepo + Send + Sync>,
     product_repo: Box<dyn ProductRepo + Send + Sync>,
     customer_repo: Box<dyn CustomerRepo + Send + Sync>,
@@ -40,10 +39,9 @@ impl OrderItemServiceImpl {
     pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
         let order_repo = Box::new(OrderItemRepoImpl::new(session.clone()));
         let product_repo = Box::new(ProductRepoImpl::new(session.clone()));
-        let customer_repo = Box::new(CustomerRepoImpl::new(session.clone()));
+        let customer_repo = Box::new(CustomerRepoImpl::new(session));
 
         Self {
-            // session,
             order_repo,
             product_repo,
             customer_repo,

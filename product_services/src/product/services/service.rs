@@ -27,15 +27,14 @@ pub trait ProductService {
     async fn list(&self, request: ListRequest) -> AppResult<Vec<Product>>;
 }
 
-pub struct ProductServiceImpl {
-    session: Arc<Mutex<PoolConnection<Postgres>>>,
+pub(crate) struct ProductServiceImpl {
     repo: Box<dyn ProductRepo + Send + Sync>,
 }
 
 impl ProductServiceImpl {
-    pub fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
-        let repo = Box::new(ProductRepoImpl::new(session.clone()));
-        Self { session, repo }
+    pub(crate) fn new(session: Arc<Mutex<PoolConnection<Postgres>>>) -> Self {
+        let repo = Box::new(ProductRepoImpl::new(session));
+        Self { repo }
     }
 }
 
@@ -53,13 +52,10 @@ impl ProductService for ProductServiceImpl {
     }
 
     async fn update(&self, request: UpdateProductRequest) -> AppResult<Product> {
-        let _ = begin_transaction(self.session.clone()).await;
         let old_product = self.repo.get(request.id as i64).await.ok().flatten();
 
         if let Some(p) = old_product {
             let is_affected = self.repo.update(request.clone()).await;
-
-            let _ = commit_transaction(self.session.clone()).await;
 
             if is_affected.is_ok() {
                 let currency = request.currency.map(|c| c as i16).unwrap_or(p.currency);
