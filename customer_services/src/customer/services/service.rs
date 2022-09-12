@@ -10,9 +10,7 @@ use common::json::customer::Customer;
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
-use common::util::tools::{
-    begin_transaction, commit_transaction, database_error_handler, rollback_transaction,
-};
+use common::util::tools::database_error_handler;
 
 use crate::customer::repos::postgres_repo::CustomerRepoImpl;
 use crate::customer::repos::repo::CustomerRepo;

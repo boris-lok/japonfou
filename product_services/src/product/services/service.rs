@@ -11,7 +11,7 @@ use common::product_pb::{CreateProductRequest, UpdateProductRequest};
 use common::types::ListRequest;
 use common::util::alias::AppResult;
 use common::util::errors::AppError;
-use common::util::tools::{begin_transaction, commit_transaction, database_error_handler};
+use common::util::tools::database_error_handler;
 
 use crate::product::repos::postgres_repo::ProductRepoImpl;
 use crate::product::repos::repo::ProductRepo;

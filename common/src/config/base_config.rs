@@ -5,12 +5,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
-        let debug =
-            dotenv::var("DEBUG").map_or_else(|_| true, |x| x.parse::<bool>().unwrap_or(true));
-
-        let secret_key = dotenv::var("SECRET_KEY").expect("Can read the secret from .env.");
-
-        Self { debug, secret_key }
+    pub fn new(debug: Option<bool>, secret_key: String) -> Self {
+        Self {
+            debug: debug.unwrap_or(true),
+            secret_key,
+        }
     }
 }

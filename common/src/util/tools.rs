@@ -1,13 +1,17 @@
-use crate::util::errors::AppError;
+use std::ops::DerefMut;
+use std::sync::Arc;
+
+use crate::config::base_config::Config;
+use crate::config::postgres_config::PostgresConfig;
 use anyhow::Result;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::lock::Mutex;
 use sqlx::pool::PoolConnection;
 use sqlx::Postgres;
-use std::ops::DerefMut;
-use std::sync::Arc;
 use tonic::Status;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
+
+use crate::util::errors::AppError;
 
 /// Init tracing - show logs in console to create daily log files.
 ///
@@ -118,4 +122,65 @@ async fn execute(session: Arc<Mutex<PoolConnection<Postgres>>>, sql: &str) -> Re
         .execute(conn.deref_mut())
         .await
         .map(|row| row.rows_affected() > 0)?)
+}
+
+/// Read postgresql config from the env.
+///
+/// host: read the POSTGRES_HOST value from the env.
+/// database: read the POSTGRES_DATABASE value from the env.
+/// username: read the POSTGRES_USERNAME value from the env.
+/// password: read the POSTGRES_PASSWORD value from the env.
+/// port: read the POSTGRES_PORT value from the env.
+/// max_connection: read POSTGRES_MAX_CONNECTION value from the env.
+///
+/// return:
+/// - PostgresConfig
+pub fn read_postgresql_config_from_env() -> PostgresConfig {
+    let host = dotenv::var("POSTGRES_HOST").expect("Can read the database host from env file.");
+
+    let database =
+        dotenv::var("POSTGRES_DATABASE").expect("Can read the database name from env file.");
+
+    let username =
+        dotenv::var("POSTGRES_USERNAME").expect("Can read the database username from env file.");
+
+    let password =
+        dotenv::var("POSTGRES_PASSWORD").expect("Can read the database password from env file.");
+
+    let port = dotenv::var("POSTGRES_PORT")
+        .expect("Can read the database port from env file.")
+        .parse::<u16>()
+        .expect("Can parse the database port from string to u16.");
+
+    let max_connection = dotenv::var("POSTGRES_MAX_CONNECTION")
+        .expect("Can read the database max connection from env file.")
+        .parse::<u8>()
+        .expect("Can parse the database max connection from string to u8.");
+
+    PostgresConfig::new(
+        host,
+        database,
+        username,
+        password,
+        Some(port),
+        Some(max_connection),
+    )
+}
+
+/// Read the default config from the env.
+///
+/// debug: read the DEBUG value from the env.
+/// secret_key: read the SECRET_KEY value from the env.
+///
+/// return:
+/// - Config
+pub fn read_config_from_env() -> Config {
+    let debug = dotenv::var("DEBUG")
+        .map(|e| e.parse::<bool>().ok())
+        .ok()
+        .flatten();
+
+    let secret_key = dotenv::var("SECRET_KEY").expect("Can read the secret key from the env file.");
+
+    Config::new(debug, secret_key)
 }

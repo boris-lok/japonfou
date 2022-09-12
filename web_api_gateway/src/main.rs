@@ -4,13 +4,13 @@ use anyhow::Result;
 use tonic::transport::Endpoint;
 use warp::Filter;
 
-use common::config::base_config::Config;
-use common::config::postgres_config::PostgresConfig;
 use common::customer_pb::customer_services_client::CustomerServicesClient;
 use common::order_item_pb::order_services_client::OrderServicesClient;
 use common::product_pb::product_services_client::ProductServicesClient;
 use common::util::connections::create_database_connection;
-use common::util::tools::tracing_initialize;
+use common::util::tools::{
+    read_config_from_env, read_postgresql_config_from_env, tracing_initialize,
+};
 
 use crate::util::env::Env;
 use crate::util::recover::rejection_handler;
@@ -25,10 +25,10 @@ async fn main() -> Result<()> {
     let env_file = concat!(env!("CARGO_MANIFEST_DIR"), "/", "env", "/", "dev.env");
     let _ = dotenv::from_path(env_file);
 
-    let config = Config::new();
+    let config = read_config_from_env();
     tracing_initialize(config.debug, "logs/", "gateway");
 
-    let postgres = PostgresConfig::new();
+    let postgres = read_postgresql_config_from_env();
     let database_connection_pool = create_database_connection(postgres)
         .await
         .expect("Can create a database connection pool.");
